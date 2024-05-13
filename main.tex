@@ -1,7 +1,10 @@
 \RequirePackage[l2tabu,orthodox]{nag}
 
-\documentclass[headsepline,footsepline,footinclude=false,oneside,fontsize=11pt,paper=a4,listof=totoc,bibliography=totoc,DIV=12]{scrbook} % one-sided
+% TODO: decide if one-sided/two-sided
+%\documentclass[headsepline,footsepline,footinclude=false,fontsize=11pt,paper=a4,listof=totoc,bibliography=totoc,BCOR=12mm,DIV=12]{scrbook} % two-sided
+\documentclass[headsepline,footsepline,footinclude=false,oneside,fontsize=11pt,paper=a4,listof=totoc,bibliography=totoc]{scrbook} % one-sided
 
+% TODO: change citation style in settings
 \input{settings}
 
 % TODO: change thesis information
@@ -9,27 +12,44 @@
 \newcommand*{\getFaculty}{Chair of Decentralized Information Systems \& Data Management}
 \newcommand*{\getTitle}{Concurrent Range Locking}
 \newcommand*{\getAuthor}{Thua-Duc Nguyen}
-\newcommand*{\getDoctype}{Thesis proposal}
+\newcommand*{\getDoctype}{Bachelor's Thesis in Computer Science}
 \newcommand*{\getSupervisor}{Prof.\@~Dr.\@ Viktor Leis }
 \newcommand*{\getAdvisor}{Lam-Duy Nguyen}
-\newcommand*{\getSubmissionDate}{19.03.2024}
+\newcommand*{\getSubmissionDate}{19.08.2024}
 \newcommand*{\getSubmissionLocation}{München}
-
-\addbibresource{sample.bib}
 
 \begin{document}
 
-\selectlanguage{english}
-
+% Set page numbering to avoid "destination with the same identifier has been already used" warning for cover page.
+% (see https://en.wikibooks.org/wiki/LaTeX/Hyperlinks#Problems_with_Links_and_Pages).
 \pagenumbering{alph}
 \input{pages/cover}
 
 \frontmatter{}
 
-\input{chapters/content.tex}
+\input{pages/title}
+\input{pages/disclaimer}
+\input{pages/acknowledgements}
+\input{pages/abstract}
+\microtypesetup{protrusion=false}
+\tableofcontents{}
+\microtypesetup{protrusion=true}
 
-\medskip
+\mainmatter{}
 
+\input{chapters/01_introduction}
+\input{chapters/02_relatedwork}
+\input{chapters/03_approach}
+\input{chapters/04_evaluation}
+\input{chapters/05_result}
+\input{chapters/06_conclusion}
+
+\appendix{}
+
+\microtypesetup{protrusion=false}
+\listoffigures{}
+\listoftables{}
+\microtypesetup{protrusion=true}
 \printbibliography{}
 
 \end{document}

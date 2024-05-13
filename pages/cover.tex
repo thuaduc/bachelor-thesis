@@ -27,21 +27,13 @@
   {\Large \getDoctype{}}
 
   \vspace{15mm}
-  \makeatletter
-  \ifthenelse{\pdf@strcmp{\languagename}{english}=0}
   {\huge\bfseries \getTitle{}}
-  {\huge\bfseries \getTitleGer{}}
-  \makeatother
 
   \vspace{15mm}
-  \begin{tabular}{l l}
-    \large Author:             & \large \getAuthor{} \\
-    \large Supervisor:         & \large \getSupervisor{} \\
-    \large Advisor:            & \large \getAdvisor{} \\
-  \end{tabular}
+  {\LARGE \getAuthor{}}
 
-  \IfFileExists{logos/faculty.png}{%
+  \IfFileExists{logos/faculty.pdf}{%
     \vfill{}
-    \includegraphics[height=20mm]{logos/faculty.png}
+    \includegraphics[height=20mm]{logos/faculty.pdf}
   }{}
 \end{titlepage}

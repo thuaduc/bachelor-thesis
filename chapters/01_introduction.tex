@@ -1,0 +1,10 @@
+% !TeX root = ../main.tex
+% Add the above to each chapter to make compiling the PDF easier in some editors.
+
+\chapter{Introduction}\label{chapter:introduction}
+
+Range locks acquire exclusive locks on consecutive values within a specified range. They play a vital role in filesystems\parencite{lee2021concurrent}, operating systems\parencite{readerWriterLocks2017}, and databases\parencite{graefe2007hierarchical}. Unlike traditional single-locking methods, range locks offer a more refined approach to resource access management. By dividing a shared resource into smaller segments, range locks allow multiple writers to modify different segments simultaneously. This approach overcomes the limitations and bottlenecks of single-lock approaches and fosters parallelism among writers. Consequently, range locks enhance overall efficiency within these critical computing systems.
+
+Recently, there has been an increase in interest in range-locking techniques. One notable example is that the Linux kernel community is considering using range-locking techniques to replace the \texttt{mmap\_lock} \parencite{readerWriterLocks2017, mapleTree2021, mmapLock2022}. The \texttt{mmap\_lock} uses a per-process semaphore to control access to the whole \texttt{mm\_struct} \parencite{mmstruct2023} and serialize changes to address spaces.  Despite previous efforts to overcome the scalability issues of \texttt{mmap\_lock}, a resolution is yet to be found \parencite{mmapLock2022}.
+
+In the context of database management systems, range locks also offer a solution to the issue of coarse-grained locking in large databases and indexes. With the storage sizes and the number of pages and indexes increasing exponentially, there are better options than locking the entire index, considering that such a coarse-grained locking mechanism inherently blocks other transactions from progressing, leading to poor throughput and high latency. As a solution to this problem, range locks focus on key ranges, thus allowing multiple transactions to operate concurrently on separate key ranges, reducing memory overhead and lock acquisition bottlenecks \parencite{graefe2007hierarchical}.

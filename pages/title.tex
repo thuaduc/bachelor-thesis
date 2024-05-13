@@ -8,7 +8,9 @@
   }
 
   \vspace{5mm}
-  {\huge\MakeUppercase{\getFaculty{}}}
+  \begin{spacing}{1.5}
+    {\huge\MakeUppercase{\getFaculty{}}}\\
+  \end{spacing}
 
   \vspace{5mm}
   {\large\MakeUppercase{\getUniversity{}}}\\
@@ -21,24 +23,15 @@
   \ifthenelse{\pdf@strcmp{\languagename}{english}=0}
   {
   {\huge\bfseries \getTitle{}}
-
-  \vspace{10mm}
-  {\huge\bfseries \foreignlanguage{ngerman}{\getTitleGer{}}}
-  }
-  {
-  {\huge\bfseries \getTitleGer{}}
-
-  \vspace{10mm}
-  {\huge\bfseries \foreignlanguage{english}{\getTitle{}}}
   }
   \makeatother
 
   \vspace{15mm}
   \begin{tabular}{l l}
-    Autor:             & \getAuthor{} \\
-    Betreuer           & \getSupervisor{} \\
-                       & \getAdvisor{} \\
-    Einreichungsdatum: & \getSubmissionDate{} \\
+    Author:         & \getAuthor{} \\
+    Supervisor:     & \getSupervisor{} \\
+    Advisor:        & \getAdvisor{} \\
+    SubmissionDate: & \getSubmissionDate{} \\
   \end{tabular}
 
   \IfFileExists{logos/faculty.png}{%

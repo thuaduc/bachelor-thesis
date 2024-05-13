@@ -1,0 +1,10 @@
+% !TeX root = ../main.tex
+% Add the above to each chapter to make compiling the PDF easier in some editors.
+
+\chapter{Related work}\label{chapter:relatedwork}
+
+Previous research has explored various approaches to scalable range locks \parencite{linuxRangeLockImpl2013, song2013parallelizing, kogan2020scalable}. The current implementation of range lock in the Linux kernel uses a range tree that keeps track of acquired ranges and an internal spin lock to protect it\parencite{linuxRangeLockImpl2013}. Since every range request relies on this single spinlock, it becomes a point of contention. 
+
+Song et al. try to improve the Linux kernel's implementation by combining a skip list with a spinlock to manage locked ranges\parencite{song2013parallelizing}. This technique leverages the skip list, which is more lightweight and efficient than the interval tree and can still conduct intensive searches for overlapping ranges. Despite these advancements, the problem of contention points still requires resolution.
+
+In another research, Kogan et al. designed a range lock based on a linked list, where each node represents an acquired range \parencite{kogan2020scalable}. By using a linked list, this approach can maintain a lock-free range lock, thus solving the bottleneck problem. However, insertion and lookup operations on the linked list are less efficient than tree-like structures. 
