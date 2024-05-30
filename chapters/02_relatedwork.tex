@@ -5,7 +5,7 @@
 
 This chapter reviews the existing research on range locks, focusing on different aspects of the problem and the solutions researchers have proposed. The following sections provide a detailed examination of different implementations, highlighting their limitations. This analysis aims to show the evolution of range-locking mechanisms and the ongoing efforts to improve their performance and scalability.
 
-\section{Range lock Implementation in the Linux Kernel}
+\section{Range Lock in the Linux Kernel}
 
 Jan Kara introduced a range-locking mechanism for the Linux kernel~\parencite{linuxRangeLockImpl2013}. The implementation leverages an interval tree to manage range locks and employs a spin lock for synchronization. Each lock is represented as a node in the tree.
 
@@ -27,9 +27,8 @@ Song et al~\parencite{song2013parallelizing} introduced a dynamic and fine-grain
 
 \subsection*{How it works}
 
-When a process requests a specific range \texttt{[start, start+len)}, the range lock searches for it in the skip list. If an existing or overlapping range is found in the skip list, it means that another thread is currently modifying the specific range, and the requesting thread must wait and then retry. If no overlapping range is found, the range is added to the skip list, indicating that the range lock has been acquired. Releasing a range involves deleting the corresponding range from the skip list.
+When a thread requests a specific range \texttt{[start, start+len)}, the range lock searches for it in the skip list. If an existing or overlapping range is found in the skip list, it means that another thread is currently modifying the specific range, and the requesting thread must wait and then retry. If no overlapping range is found, the range is added to the skip list, indicating that the range lock has been acquired. Releasing a range involves deleting the corresponding range from the skip list.
 
-\textbf{The skip list is lightweight and fast.} 
 Compared to the interval tree, the skip list is more lightweight and efficient, and it can efficiently perform searches for overlapping ranges.
 
 \subsection*{Drawbacks}
@@ -39,17 +38,16 @@ Similar to the one found in the Linux kernel, this range lock is also protected 
 
 \section{Concurrent Linked List-Base Range Lock}
 
-Kogan et al. \cite{kogan2020scalable} introduced a novel range lock based on a concurrent linked list, where each node represents an acquired range. This design aims to provide a lock-free mechanism, addressing some critical shortcomings of previous range-locking implementations. In a lock-free system, processes can proceed without being blocked by locks held by other processes, thereby improving performance and scalability. 
+Kogan et al.~\parencite{kogan2020scalable} introduced a novel range lock based on a concurrent linked list, where each node represents an acquired range. This design aims to provide a lock-free mechanism, addressing some critical shortcomings of previous range-locking implementations. In a lock-free system, processes can proceed without being blocked by locks held by other processes, thereby improving performance and scalability. 
 
 \subsection*{How it works}
 
-The proposed method involves inserting acquired ranges into a linked list sorted by their starting points, ensuring that only one range from a group of overlapping ranges can be inserted using an atomic compare-and-swap (CAS) operation.
+The proposed method involves inserting acquired ranges into a linked list sorted by their starting points, ensuring that only one range from a group of overlapping ranges can be inserted using an atomic compare-and-swap (CAS) operation. A significant difference in this method compared to the previous one is that a node has two statuses: \texttt{marked} (logically deleted) or \texttt{unmarked} (present). 
 
-A significant difference in this method compared to the previous one is that a node has two statuses: marked (logically deleted) or unmarked (present). When a thread wants to acquire a range, it iterates through the skip list. If it reaches a marked node, it simply removes it using CAS and continues to iterate. If the current node is protecting a range that overlaps, it simply waits until that node is deleted. Otherwise, a node is inserted into the list, signaling that the range is acquired. To release a range, the thread marks the node. 
-
+When a thread wants to acquire a range, it iterates through the skip list. If it reaches a marked node, it simply removes it using CAS and continues to iterate. If the current node is protecting a range that overlaps, it simply waits until that node is deleted. Otherwise, a node is inserted into the list, signaling that the range is acquired. To release a range, the thread marks the node. 
 \subsection*{Drawbacks}
 
-\textbf{Linked list inefficiency.}
+\textbf{Linked List Inefficiency.}
 This design implements a lock-free mechanism that effectively addresses the limitations of existing range locks. However, this approach comes with its own set of trade-offs. In general, insertion and lookup operations in a linked list are less efficient than tree-like structures. The average time complexity for searching in a linked list is \( O(n) \), whereas it is only \( O(\log n) \) for skip lists or tree-like structures~\parencite{fomitchev2004lock}.
 
 
