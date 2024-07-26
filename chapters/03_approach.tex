@@ -3,32 +3,40 @@
 
 \chapter{Approach}\label{chapter:approach}
 
+In this research's scope, we propose a new concurrent range-locking design that leverages a probabilistic concurrent skip list~\parencite{herlihy2006provably, herlihy2020art}. It consists of two main functions:
+\begin{itemize}
+    \item \textbf{try\_lock}: The \texttt{try\_lock} function searches for the required range \texttt{[start, start+len)} in the skip list. If an overlapping range exists, indicating another thread is modifying that range, the requesting thread must wait and retry. If not, the range is added to the list, signaling that the range is reserved.
+    \item \textbf{release\_lock}: The \texttt{release\_lock} function releases the lock by finding the address range in the skip list and removing it accordingly.
+\end{itemize} 
+
+Our range lock design also lock free. It rely on compare and swap, thus addressing the bottleneck problem of the spinlock-based range lock and maintaining the lock's high level of performance. 
+
 \section{Skip List}
 
-A skip list is a probabilistic data structure that allows fast search, insertion, and deletion. It is an alternative to balanced trees, such as AVL trees or red-black trees~\parencite{pugh1990skip, pugh1990skip2}. The key idea of a skip list is to use multiple layers of sorted linked lists to maintain elements, where each layer is an "express lane" for faster traversal.
+A skip list is a probabilistic data structure. It allows fast search, insertion, and deletion. It is an alternative to balanced trees, such as AVL trees or red-black trees~\parencite{pugh1990skip, pugh1990skip2}. The key idea of a skip list is to use multiple layers of sorted linked lists to maintain elements, where each layer is an "express lane" for faster traversal.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{./figures/skiplist.jpg}
     \caption{Skip List: this example has five levels of sorted linked lists. \\
-    Each node has an unique key, and the head and tail have $-\infty$ and $+\infty$ keys.}
+    Each \texttt{Node} has an unique key, and the head and tail have $-\infty$ and $+\infty$ keys.}
     \label{fig:skiplist}
 \end{figure}
 
 \subsection*{How it work}
 
-\textbf{Layers:} A skip list consists of multiple layers. The bottom-most layer is a regular sorted linked list. Each higher layer acts as an "express lane" to speed up access by skipping over multiple elements from the layer below.
+\textbf{Multiple Layers:} A skip list consists of multiple layers where the bottom-most layer is a regular sorted linked list. Each higher layer acts as an “express lane” that speeds up access by skipping over multiple elements from the layer below. Nodes in higher layers provide shortcuts, allowing faster traversal across the list, which effectively reduces the time complexity of search operations.
 
-\textbf{Probabilistic Balancing:} When a new element is inserted, a node with a random height is generated. This random generation ensures that the list structure remains balanced. Consequently, skip list insertion and deletion algorithms are much simpler and faster than equivalent algorithms for balanced trees.
+\textbf{Probabilistic Balancing:} Each \texttt{Node} is created with a random top level and belongs to all lists up to that level. Top levels are chosen so that the expected number of nodes in each level's list decreases exponentially. Let \(0 < p < 1\) be the conditional probability that a \texttt{Node} at level \(i\) also appears at level \(i + 1\). All nodes appear at level \(0\). The probability that a \texttt{Node} at level 0 also appears at level \(i > 0\) is \( p^i\). For example, with \(p = 1/2\), \(1/2\) of the nodes are expected to appear at level \(1\), \(1/4\) at level 2, and so on, providing a balancing property like the classical sequential tree-based search structures, except without the need for complex global restructuring. This random generation ensures that the list structure remains balanced. Consequently, skip list insertion and deletion algorithms are much simpler and faster than equivalent algorithms for balanced trees.
 
-\textbf{Search Operation:} To search for an element, the search starts at the top-most layer and moves horizontally until it finds an element greater than or equal to the target element. If it finds an element greater than the target, it drops to the next lower layer and continues the search. This process repeats until the element is found or the search reaches the bottom-most layer without finding the target.
+\textbf{Search Operation:} To search for an element, the algorithm starts at the top-most layer and moves horizontally through the elements of that layer. When it encounters an element greater than the target, it drops down to the next lower layer and continues the search horizontally. This process of horizontal traversal and vertical descent continues until the target element is found or the search reaches the bottom-most layer without finding the target. The hierarchical structure allows for logarithmic search time.
 
-\textbf{Insertion and Deletion:} Inserting an element involves placing it in the appropriate position in the bottom-most layer and then possibly promoting it to higher layers based on the coin flips. Deleting an element involves removing it from all layers in which it appears.
+\textbf{Insertion and Deletion:} Inserting an element involves locating the appropriate position in the bottom-most layer, placing the element there, and then potentially promoting the element to higher layers. Each promotion step is independent, ensuring the probabilistic balancing of the structure. Deleting an element requires removing it from all layers in which it appears, which is straightforward once the element is located using the search algorithm. The process of updating references in multiple layers ensures that the skip list remains balanced and efficient for subsequent operations.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{./figures/skiplistsearch.jpg}
-    \caption{Skip List: In this example, the list searches for a node with value 4. It starts on the head node on the highest level, tries to move horizontally until it reaches a greater value than 4, and then goes down a level and repeats. The number noted on the arrows implies the order of the traversal.}
+    \caption{Skip List: In this example, the list searches for a \texttt{Node} with value 4. It starts on the head \texttt{Node} on the highest level, tries to move horizontally until it reaches a greater value than 4, and then goes down a level and repeats. The number noted on the arrows implies the order of the traversal.}
     \label{fig:skiplistsearch}
 \end{figure}
 
@@ -42,10 +50,133 @@ Despite their theoretically poor worst-case performance, skip lists rarely exhib
         \textbf{Operation} & \textbf{Best Case} & \textbf{Average Case} & \textbf{Worst Case} \\ \hline
  Search, Insert, Delete & $O(1)$ & $O(\log n)$ & $O(n)$ \\ \hline
     \end{tabular}
-    \caption{Time complexities of skip list operations. They have the same complexities}
+    \caption{Time complexities of skip list operations}
     \label{table:skiplisttimecomplexity}
 \end{table}
 
 \newpage
 
 \section{Concurrent Range Lock}
+We developed our concurrent range lock based on the design of \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}. In summary, LockFreeSkipList uses atomic operations such as \texttt{compareAndSet()} to manage \texttt{Node} references without locks, which enhances performance in multi-threaded environments. When adding a \texttt{Node}, the process starts at the lowest level and moves upward to ensure immediate visibility. When removing a \texttt{Node}, it involves marking nodes from the top down before unlinking them. Furthermore, it relaxes strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency. We made some modifications to adapt this structure to our concurrent range lock.
+
+For simplicity, we use uint for our pseudo code provided in this section. In our opensource C++ implementation we use template to enable generic programming.
+
+\subsection{Concurrent Range Lock}
+
+The \texttt{ConcurrentRangeLock} class provides a concurrent mechanism to manage range-based locks. Its primary API includes methods for locking and unlocking ranges. Each range is stored in a single \texttt{}. The \texttt{tryLock} method attempts to acquire a lock for the specified range \texttt{[start, end)}, returning \texttt{true} on success and \texttt{false} otherwise. The \texttt{releaseLock} method releases the lock for the range \texttt{[start, end)}, with \texttt{true} indicating success and \texttt{false} if the range was not found or an error occurred. The two main method rely heavily on \texttt{find} methods such as \texttt{findInsert}, \texttt{findExact}, and \texttt{findDelete}, which handle insertion, exact range finding, and deletion of ranges respectively.
+
+All of these methods will be discused in section ... (ref).
+
+\begin{lstlisting}[style=mystyle, caption=Concurrent Range Lock]
+class ConcurrentRangeLock {
+public:
+    ConcurrentRangeLock();
+
+    bool tryLock(uint64_t start, uint64_t end);
+    bool releaseLock(uint64_t start, uint64_t end);
+
+private:
+    int randomLevel();
+
+    bool findInsert(uint64_t start, uint64_t end, Node<uint64_t> **preds, Node<uint64_t> **succs);
+    bool findExact(uint64_t start, uint64_t end, Node<uint64_t> **preds, Node<uint64_t> **succs);
+    void findDelete(uint64_t start, uint64_t end);
+
+    Node<uint64_t> *head, *tail;
+};
+\end{lstlisting}
+
+\subsection{Node}
+
+The critical modification that we made is inside the \texttt{Node} structure. Each Node now contains \textbf{\texttt{start}} and \textbf{\texttt{end}}, instead of \textbf{\texttt{key}} and \textbf{\texttt{value}}, which represent the acquired range associated with the Node. Node also uses an array of \textbf{\texttt{AtomicMarkableReference}} (more details in section\ref{AtomicMarkableReference}), to maintain forward links at each level, which allows for efficient traversal and updates. The \textbf{\texttt{initialize}} method sets up a \texttt{Node} with specific range and level values. In contrast, \textbf{\texttt{initializeHead}} configures the head \texttt{Node} with forward pointers directed to a provided tail \texttt{Node}, establishing the initial structure. Additionally, the \texttt{Node} class provides accessor methods to retrieve the Node's properties.
+
+\begin{lstlisting}[style=mystyle, caption=Node structure]
+class Node {
+    public:
+        uint64_t start, end;
+        int topLevel;
+        AtomicMarkableReference<Node>** next;
+    
+        Node() : next(nullptr) {}
+        void initialize(uint64_t start, uint64_t end, int topLevel);
+        void initializeHead(uint64_t start, uint64_t end, int topLevel, Node* tail);
+        int getTopLevel() const { return topLevel; }
+        uint64_t getStart() const { return start; }
+        uint64_t getEnd() const { return end; }
+    };
+    
+void Node::initialize(uint64_t start, uint64_t end, int topLevel) {
+    this->start = start;
+    this->end = end;
+    this->topLevel = topLevel;
+
+    next = new AtomicMarkableReference<Node>*[topLevel + 1];
+    for (int i = 0; i <= topLevel; ++i)
+        next[i] = new AtomicMarkableReference<Node>();
+}
+
+void Node::initializeHead(uint64_t start, uint64_t end, int topLevel, Node* tail) {
+    initialize(start, end, topLevel);
+    for (int i = 0; i <= topLevel; ++i)
+        next[i]->store(tail, false);
+}
+\end{lstlisting}
+
+\subsection{AtomicMarkableReference} \label{AtomicMarkableReference}
+
+\texttt{AtomicMarkableReference} is designed encapsulates both a reference to an object of type T and a Boolean mark~\parencite{atomicMarkableReference}.
+
+The \texttt{AtomicMarkableReference} class uses a single atomic variable, \texttt{atomicRefMark}, to store a packed representation of the reference and the mark. The packing and unpacking of these values are done using bitwise operations, where the least significant bit represents the mark. The class offers several atomic methods: \texttt{compareAndSet} tests if the current reference and mark match the expected values and, if so, updates them to new values atomically; \texttt{attemptMark} sets the mark if the reference matches the expected value; and \texttt{store} directly sets the reference and mark. Additionally, the \texttt{get} method returns both the reference and the mark, while \texttt{getReference} returns just the reference.
+
+\begin{lstlisting}[style=mystyle, caption=AtomicMarkableReference]
+class AtomicMarkableReference {
+    private:
+        std::atomic<uintptr_t> atomicRefMark;
+        static constexpr uintptr_t MARK_MASK = 0x1;
+    
+        uintptr_t pack(Node* ref, bool mark) const {
+            return reinterpret_cast<uintptr_t>(ref) | (mark ? MARK_MASK : 0);
+        }
+    
+        std::pair<Node*, bool> unpack(uintptr_t packed) const {
+            return {reinterpret_cast<Node*>(packed & ~MARK_MASK), packed & MARK_MASK};
+        }
+    
+    public:
+        AtomicMarkableReference() {
+            atomicRefMark.store(pack(nullptr, false), std::memory_order_relaxed);
+        }
+    
+        void store(Node* ref, bool mark) {
+            atomicRefMark.store(pack(ref, mark), std::memory_order_relaxed);
+        }
+    
+        bool compareAndSet(Node* expectedRef, Node* newRef, bool expectedMark, bool newMark) {
+            return atomicRefMark.compare_exchange_strong(
+                pack(expectedRef, expectedMark), pack(newRef, newMark), std::memory_order_acq_rel);
+        }
+    
+        bool attemptMark(Node* expectedRef, bool newMark) {
+            uintptr_t current = atomicRefMark.load(std::memory_order_acquire);
+            auto [currentRef, currentMark] = unpack(current);
+            if (currentRef == expectedRef && currentMark != newMark) {
+                return atomicRefMark.compare_exchange_strong(current, pack(expectedRef, newMark), std::memory_order_acq_rel);
+            }
+            return false;
+        }
+    
+        std::pair<Node*, bool> get() const {
+            return unpack(atomicRefMark.load(std::memory_order_acquire));
+        }
+    
+        Node* get(bool* mark) const {
+            auto [ref, currentMark] = get();
+            *mark = currentMark;
+            return ref;
+        }
+    
+        Node* getReference() const {
+            return get().first;
+        }
+};
+\end{lstlisting}

@@ -23,7 +23,7 @@ Consider three exclusive lock requests for the ranges \( A = [1..3], \; B = [2..
 
 \section{Skip List-Based Range Lock}
 
-Song et al~\parencite{song2013parallelizing} introduced a dynamic and fine-grained range-locking design to enhance the implementation of the Linux kernel. Their range lock utilizes a skip list~\parencite{pugh1990skip} to dynamically manage the address ranges that are currently locked.
+Song et al.~\parencite{song2013parallelizing} introduced a dynamic and fine-grained range-locking design to enhance the implementation of the Linux kernel. Their range lock utilizes a skip list~\parencite{pugh1990skip} to dynamically manage the address ranges that are currently locked.
 
 \subsection*{How it works}
 
@@ -42,7 +42,7 @@ Kogan et al.~\parencite{kogan2020scalable} introduced a novel range lock based o
 
 \subsection*{How it works}
 
-The proposed method involves inserting acquired ranges into a linked list sorted by their starting points, ensuring that only one range from a group of overlapping ranges can be inserted using an atomic compare-and-swap (CAS) operation. A significant difference in this method compared to the previous one is that a node has two statuses: \texttt{marked} (logically deleted) or \texttt{unmarked} (present). 
+The proposed method involves inserting acquired ranges into a linked list sorted by their starting points, ensuring that only one range from a group of overlapping ranges can be inserted using an atomic \texttt{compare-and-swap} operation. A significant difference in this method compared to the previous one is that a node has two statuses: \texttt{marked} (logically deleted) or \texttt{unmarked} (present). 
 
 When a thread wants to acquire a range, it iterates through the skip list. If it reaches a marked node, it simply removes it using CAS and continues to iterate. If the current node is protecting a range that overlaps, it simply waits until that node is deleted. Otherwise, a node is inserted into the list, signaling that the range is acquired. To release a range, the thread marks the node. 
 \subsection*{Drawbacks}
