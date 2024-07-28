@@ -78,16 +78,15 @@ Skip lists are ideal for implementing range locks, offering a balanced structure
 
 \section{Concurrent Range Lock}\label{sec:concurrent-range-lock}
 We developed our concurrent range lock based on the design of \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}.
-In summary, LockFreeSkipList uses atomic operations (\texttt{compareAndSet()}) to manage \texttt{Node} references without locks, which enhances performance in multithreaded environments.
+In summary, our concurrent range lock uses atomic operations (\texttt{compareAndSet()}) to manage \texttt{Node} references without locks, which enhances performance in multithreaded environments.
 When adding a \texttt{Node}, the process starts at the lowest level and moves upward to ensure immediate visibility.
 Removing a \texttt{Node} involves marking nodes from the top down before unlinking them.
 Furthermore, it relaxes strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency.
-We made some modifications to adapt this structure to our concurrent range lock.
 
-For the sake of simplicity, we use uint for our pseudocode provided in this section.
+For the sake of simplicity, we use uint64\_t for our pseudocode provided in this section.
 In our open-source C++ implementation, we use the template to enable generic programming.
 
-\subsection{The idea}\label{subsec:the-idea}
+\subsection{Concurrent Range Lock API}\label{subsec:api}
 
 The \texttt{ConcurrentRangeLock} class provides a concurrent mechanism to manage range-based locks.
 Its primary API includes methods for locking and unlocking ranges.
@@ -95,9 +94,7 @@ Each range is stored in a single \texttt{Node}.
 The \texttt{tryLock} method attempts to acquire a lock for the specified range \texttt{[start, end]}, returning \texttt{true} on success and \texttt{false} otherwise.
 The \texttt{releaseLock} method releases the lock for the range \texttt{[start, end]}, with \texttt{true} indicating success and \texttt{false} if the range was not found or an error occurred.
 
-The two primary methods rely heavily on \texttt{find} methods such as \texttt{findInsert}, \texttt{findExact}, and \texttt{findDelete}, which handle insertion, exact range finding, and deletion of ranges, respectively.
-
-All of these methods will be discussed in section \ldots (ref).
+The two primary methods rely heavily on \texttt{find} methods such as \texttt{findInsert}, \texttt{findExact}, and \texttt{findDelete}, which handle insertion finding, exact range finding, and physical deletion of ranges, respectively. We will discuss these methods in section \ref{subsec:find}.
 
 \begin{lstlisting}[style=mystyle, caption=Concurrent Range Lock,label={}]
 class ConcurrentRangeLock {
@@ -108,23 +105,27 @@ class ConcurrentRangeLock {
     bool releaseLock(uint64_t start, uint64_t end);
 
   private:
-    Node<uint64_t> *head, *tail;
-    int randomLevel();
+    Node *head, *tail;
 
-    bool findInsert(uint64_t start, uint64_t end, Node<uint64_t> **preds, Node<uint64_t> **succs);
-    bool findExact(uint64_t start, uint64_t end, Node<uint64_t> **preds, Node<uint64_t> **succs);
+    int randomLevel();
+    bool findInsert(uint64_t start, uint64_t end, Node **preds, Node **succs);
+    bool findExact(uint64_t start, uint64_t end, Node **preds, Node **succs);
     void findDelete(uint64_t start, uint64_t end);
 };
 \end{lstlisting}
 
 \subsection{Node}\label{subsec:node}
 
-We made a critical modification inside the \texttt{Node} structure.
-Each \texttt{Node} now contains \textbf{\texttt{start}} and \textbf{\texttt{end}}, instead of \textbf{\texttt{key}} and \textbf{\texttt{value}}, which represent the acquired range associated with the Node.
-\texttt{Node} also uses an array of \textbf{\texttt{AtomicMarkableReference}} (more details in section \ref{subsec:atomicmarkablereference}) to maintain forward links at each level, which allows for efficient traversal and updates.
-The \texttt{initialize} method sets up a \texttt{Node} with specific range and level values.
-In contrast, \textbf{\texttt{initializeHead}} configures the head \texttt{Node} with forward pointers directed to a provided tail \texttt{Node}, establishing the initial structure.
-Additionally, the \texttt{Node} class provides accessor methods to retrieve the Node's properties.
+Let first understand the class \texttt{Node}, the base of our \texttt{ConcurrentRangeLock} structure.
+
+Each \texttt{Node} contains \textbf{\texttt{start}} and \textbf{\texttt{end}}, which represents range.
+\texttt{Node} also uses an array of \textbf{\texttt{AtomicMarkableReference}} (more details in section \ref{subsec:atomicmarkablereference}) to maintain forward links at each level, which allows for efficient traversal and updates. \texttt{Node} provides the following methods:
+
+\begin{itemize}
+    \item \texttt{initialize}: sets up a \texttt{Node} with specific range and level values.
+    \item \textbf{\texttt{initializeHead}}: configures the head \texttt{Node} with forward pointers directed to a provided tail \texttt{Node}, establishing the initial structure.
+    \item \texttt{getTopLevel()}, \texttt{getStart()}, \texttt{getEnd()}: accessor methods to retrieve the Node's properties.
+\end{itemize}
 
 \vspace{15pt}
 
@@ -139,19 +140,20 @@ class Node {
     Node() : next(nullptr) {}
 
     void initialize(uint64_t start, uint64_t end, int topLevel) {
-    this->start = start;
-    this->end = end;
-    this->topLevel = topLevel;
+        this->start = start; this->end = end;
+        this->topLevel = topLevel;
 
-    next = new AtomicMarkableReference<Node>*[topLevel + 1];
-    for (int i = 0; i <= topLevel; ++i)
-    next[i] = new AtomicMarkableReference<Node>();
+        next = new AtomicMarkableReference<Node>*[topLevel + 1];
+        for (int i = 0; i <= topLevel; ++i) {
+            next[i] = new AtomicMarkableReference<Node>();
+        }
     }
 
     void initializeHead(uint64_t start, uint64_t end, int topLevel, Node* tail) {
-    initialize(start, end, topLevel);
-    for (int i = 0; i <= topLevel; ++i)
-    next[i]->store(tail, false);
+        initialize(start, end, topLevel);
+        for (int i = 0; i <= topLevel; ++i){
+            next[i]->store(tail, false);
+        }
     }
 
     int getTopLevel() const { return topLevel; }
