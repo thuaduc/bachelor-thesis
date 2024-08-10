@@ -1,11 +1,23 @@
-% !TeX root = ../main.tex
-% Add the above to each chapter to make compiling the PDF easier in some editors.
-
 \chapter{Evaluation}\label{chapter:evaluation}
 
-The proposed approach will be evaluated under these evaluation criteria:
-\begin{itemize}
-    \item \textbf{Performance:} We will test the range lock mechanism under increasing load and concurrent accesses to measure its performance.
-    \item \textbf{Correctness:} We will ensure the consistency and correctness of data accesses, especially when there are overlapping data ranges and concurrent operations.
-    \item \textbf{Comparison:} We will compare the performance of the proposed solution with existing state-of-the-art approaches.
-\end{itemize}
+In this section, we will evaluate our proposed concurrent range lock under diffrerents senarios. The goal is to see the scalability, throughtput as well as the latency of our mechanism comparing to state-of-the-art range lock.
+
+\section{Competitor}
+
+In addition to our version of range lock, we implement two diffrerent version. One scalable range lock proposed by Kogan et al.~\parencite{kogan2020scalable}, denoted as \texttt{ver2}. Other range lock proposed by Song et al.~\parencite{song2013parallelizing}, denoted as \texttt{ver3}.
+
+\section{Microbenchmark}
+
+\subsection{Benchmark enviroment}
+
+\subsection{Benchmark description}
+
+The goal of concurrent range lock is to enable multiple threads access disjoint parts of the same shared object. For this reason we will use \texttt{mmap()} as a shared object and the function \texttt{memset()} as a replacement for actual write to the object. 
+To simulate various levels of contention and possible usage scenarios for range locks, we created three variants.
+
+\begin{enumarate}
+    \item \textbf{All threads acquire the whole range.} For this variant, all thread will try to lock the whole ranges. The goal is to see how well each version of range lock scale while the number of worker threads increase. Each thread will acquire a non-overlapping amount of ranges calculated by dividing the size of the array by the number of threads. We run this benchmark in two ways: each thread acquires all of the ranges and then releases them at the same time; and each thread acquires and releases one range immediately, and move on to the next range.
+
+    \item \textbf{Each thread acquire diffrerents part of the object.} For this variant, we will try to simulate a realistic scenario of the usage of range lock. Each thread will try to aquire diffrerent ranges. We will run this benchmark with diffrerent sizes of range: 4, 16, 256, and a mix of them. For each size, there will be two test cases. One with zero overlap, and the other with 25\% overlaps.
+\end{enumarate}
+
