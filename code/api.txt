@@ -1,0 +1,15 @@
+class ConcurrentRangeLock {
+  public:
+    ConcurrentRangeLock();
+
+    bool tryLock(uint64_t start, uint64_t end);
+    bool releaseLock(uint64_t start, uint64_t end);
+
+  private:
+    Node *head, *tail;
+
+    int randomLevel();
+    bool findInsert(uint64_t start, uint64_t end, Node **preds, Node **succs);
+    bool findExact(uint64_t start, uint64_t end, Node **preds, Node **succs);
+    void findDelete(uint64_t start, uint64_t end);
+};

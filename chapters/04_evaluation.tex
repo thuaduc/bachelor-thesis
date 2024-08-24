@@ -4,30 +4,30 @@ In this section, we will evaluate our proposed concurrent range lock under diffr
 
 \section{Competitor}
 
-In addition to our version of range lock, we implement two diffrerent version. One scalable range lock proposed by Kogan et al.~\parencite{kogan2020scalable}, denoted as \texttt{ver2}. Other range lock proposed by Song et al.~\parencite{song2013parallelizing}, denoted as \texttt{ver3}.
+We denote our main implementation as \texttt{Our}. In addition to \texttt{Our}, we implement two different variants for comparison. The first variant is a scalable range lock proposed by Kogan et al.~\parencite{kogan2020scalable}, denoted as \texttt{ver2}. We specifically implemented the Exclusive Access Variant presented in their paper, as it aligns with the focus of our research. The second variant is a skiplist range lock proposed by Song et al.~\parencite{song2013parallelizing}, which we denote as \texttt{ver3}.
 
-\section{Microbenchmark}
+\section{Benchmark enviroment}
 
-\subsection{Benchmark enviroment}
+\section{Microbenchmark}\label{sec:microbenchmark}
 
-\subsection{Benchmark variants}\label{subsec:variant}
+\subsection{Workload}\label{subsec:workload}
 The primary objective of a concurrent range lock mechanism is to enable multiple threads to access disjoint parts of the same shared object efficiently. To simulate and evaluate the effectiveness of different range locking strategies, we utilize the \texttt{mmap()} system call to create a shared object in memory, and the \texttt{memset()} function to simulate write operations to this shared object. The use of \texttt{memset()} serves as a placeholder for actual modifications, enabling us to focus on the performance characteristics of the locking mechanism itself.
 
-To explore various levels of contention and potential usage scenarios for range locks, we have devised three distinct variants, each designed to stress the locking mechanism under different conditions:
+To explore various levels of contention and potential usage scenarios for range locks, we have devised three distinct workload, each designed to stress the locking mechanism under different conditions:
 
 \begin{itemize} 
-    \item \textbf{\texttt{V1}:} In this variant, each thread accumulates a list of ranges that it intends to modify. Once all ranges in the working queue are identified, the thread locks all these ranges simultaneously, performs the necessary modifications, and then releases all the locks at the same time. This approach is designed to simulate scenarios where threads must work with a large number of ranges concurrently, testing the scalability of the range lock mechanism when it is required to manage a significant number of simultaneous locks. The primary goal of \texttt{V1} is to assess how well the range lock can handle heavy contention when multiple threads attempt to lock numerous ranges at once.
+    \item \textbf{\texttt{W1}:} In this workload, each thread accumulates a list of ranges that it intends to modify. Once all ranges in the working queue are identified, the thread locks all these ranges simultaneously, performs the necessary modifications, and then releases all the locks at the same time. This approach is designed to simulate scenarios where threads must work with a large number of ranges concurrently, testing the scalability of the range lock mechanism when it is required to manage a significant number of simultaneous locks. The primary goal of \texttt{V1} is to assess how well the range lock can handle heavy contention when multiple threads attempt to lock numerous ranges at once.
     
-    \item \textbf{\texttt{V2}:} In this variant, each thread operates in a more granular fashion. A thread locks a single range, performs the modification (simulated by \texttt{memset()}), and immediately releases the lock before moving on to the next range in its working queue. This variant simulates a scenario with minimal contention, where the range lock mechanism is tested for its efficiency in handling rapid lock acquisition and release cycles. The objective here is to observe the overhead introduced by the locking mechanism when contention is low and to evaluate the lock's performance in scenarios that demand high throughput with minimal waiting times.
+    \item \textbf{\texttt{W2}:} In this workload, each thread operates in a more granular fashion. A thread locks a single range, performs the modification (simulated by \texttt{memset()}), and immediately releases the lock before moving on to the next range in its working queue. This workload simulates a scenario with minimal contention, where the range lock mechanism is tested for its efficiency in handling rapid lock acquisition and release cycles. The objective here is to observe the overhead introduced by the locking mechanism when contention is low and to evaluate the lock's performance in scenarios that demand high throughput with minimal waiting times.
     
-    \item \textbf{\texttt{V3}:} The third variant introduces a hybrid approach, combining elements of both \texttt{V1} and \texttt{V2}. In this variant, a thread locks a range and then releases it immediately with a probability of 95\%. In the remaining 5\% of cases, the thread holds onto the lock and not release. This variant is designed to create a scenario where the lock occasionally becomes more congested, thereby allowing us to evaluate the efficiency of the range lock under conditions where some ranges are held longer, potentially causing increased contention. The purpose of \texttt{V3} is to simulate real-world scenarios where not all operations are equal in duration, and some threads may need to hold locks for longer, testing the lock's ability to handle such situations without significant performance degradation.
+    \item \textbf{\texttt{W3}:} The third workload introduces a hybrid approach, combining elements of both \texttt{V1} and \texttt{V2}. In this workload, a thread locks a range and then releases it immediately with a probability of 95\%. In the remaining 5\% of cases, the thread holds onto the lock and not release. This workload is designed to create a scenario where the lock occasionally becomes more congested, thereby allowing us to evaluate the efficiency of the range lock under conditions where some ranges are held longer, potentially causing increased contention. The purpose of \texttt{V3} is to simulate real-world scenarios where not all operations are equal in duration, and some threads may need to hold locks for longer, testing the lock's ability to handle such situations without significant performance degradation.
 \end{itemize}
 
-Through these variants, we aim to comprehensively evaluate the performance of the concurrent range lock mechanism under different workloads and contention scenarios. Each variant provides insights into specific aspects of the lock's scalability, efficiency, and overall robustness in handling varying degrees of parallelism and contention.
+Through these workload, we aim to comprehensively evaluate the performance of the concurrent range lock mechanism under different workloads and contention scenarios. Each workload provides insights into specific aspects of the lock's scalability, efficiency, and overall robustness in handling varying degrees of parallelism and contention.
 
 \subsection{Optimal Height for Range Locking}
 
-The height of the skip list in our range locking mechanism plays a critical role in balancing performance and resource utilization. A skip list with insufficient height may fail to optimize lookup times effectively, leading to slower performance, while an excessive height increases memory consumption and management overhead without proportionate gains in efficiency. This test aims to determine the optimal height for our concurrent range locking mechanism before comparing it to alternative approaches. We conducted experiments using the three variants described in \ref{subsec:variant} to identify the best skip list height.
+The height of the skip list in our range locking mechanism plays a critical role in balancing performance and resource utilization. A skip list with insufficient height may fail to optimize lookup times effectively, leading to slower performance, while an excessive height increases memory consumption and management overhead without proportionate gains in efficiency. This test aims to determine the optimal height for our concurrent range locking mechanism before comparing it to alternative approaches. We conducted experiments using the three workload described in \ref{subsec:workload} to identify the best skip list height.
 
 \begin{figure}[h]
     \centering
@@ -69,50 +69,173 @@ The height of the skip list in our range locking mechanism plays a critical role
 \end{figure}
 
 
-For both \textbf{V1} and \textbf{V3}, we observe that total runtime decreases as the height of the skip list increases, which is consistent with the expected behavior of skip lists. The skip list's multi-level structure allows for faster lookups as the height increases, reducing the overall runtime. However, beyond a height of 10, we notice a plateau where increasing the height yields diminishing returns. This phenomenon can be explained by the probabilistic nature of skip list level assignment, as detailed in \ref{subsec:howitwork}. Since the probability of a node being elevated to a higher level decreases linearly. For example, for level 12, the probability is approximately \(\frac{1}{2^{12}} \approx 0.00024\%\). The uppermost layers of the skip list become sparsely populated, rendering them less impactful on performance. Despite this, these higher levels still contribute to increased memory usage without significant performance benefits.
+For both \textbf{W1} and \textbf{W3}, we observe that total runtime decreases as the height of the skip list increases, which is consistent with the expected behavior of skip lists. The skip list's multi-level structure allows for faster lookups as the height increases, reducing the overall runtime. However, beyond a height of 10, we notice a plateau where increasing the height yields diminishing returns. This phenomenon can be explained by the probabilistic nature of skip list level assignment, as detailed in \ref{subsec:howitwork}. Since the probability of a node being elevated to a higher level decreases linearly. For example, for level 12, the probability is approximately \(\frac{1}{2^{12}} \approx 0.00024\%\). The uppermost layers of the skip list become sparsely populated, rendering them less impactful on performance. Despite this, these higher levels still contribute to increased memory usage without significant performance benefits.
 
-For \textbf{V2}, where contention is minimal and each thread locks and releases ranges immediately, the height of the skip list has negligible impact on performance. In this scenario, since the number of ranges locked at any given time is limited to the number of active worker threads, the benefits of a taller skip list are not realized. The overhead of managing additional levels outweighs any potential gains, leading to similar performance across different heights.
+For \textbf{W2}, where contention is minimal and each thread locks and releases ranges immediately, the height of the skip list has negligible impact on performance. In this scenario, since the number of ranges locked at any given time is limited to the number of active worker threads, the benefits of a taller skip list are not realized. The overhead of managing additional levels outweighs any potential gains, leading to similar performance across different heights.
 
 Based on these observations, we identify a sweet spot at a height of \texttt{10}, where the trade-off between performance and resource utilization is optimized. This height balances the need for efficient lookups with manageable memory overhead, making it the ideal choice for our range locking mechanism in subsequent benchmarks.
 
-\subsection{leanstore}
+\subsection{Result}
 
-In order to simulate a realistic benchmarks, we integrated all kind of range locks into \texttt{leanstore}~\parencite{leis2018leanstore}, a high-performance OLTP storage engine optimized for many-core CPUs and NVMe SSDs. 
+... 
 
-The experiment, utilizing synthetic YCSB workloads, was designed to evaluate the performance of LeanStore under a read-intensive, multithreaded environment. The workload comprises exclusively read operations, executed over a 10-second duration, with each read operation employing a straightforward \texttt{memcpy()} function. Each record in the workload has a payload size of 1 MB, with a total of 1000 records being processed. The experiment also incorporates a buffer management configuration that allocates 128 GB of virtual memory alongside 32 GB of physical memory, providing a robust test of LeanStore's ability to manage large data sets under constrained physical memory conditions.
+\section{Leanstore}
 
-\begin{tikzpicture}
-    \begin{axis}[
-        title={Comparison of tx over time},
-        xlabel={Time (ts)},
-        ylabel={tx},
-        legend style={at={(0.5,-0.15)},anchor=north,legend columns=-1},
-        ymajorgrids=true,
-        grid style=dashed,
-    ]
+\texttt{Leanstore}~\parencite{leis2018leanstore} is a high-performance storage engine designed to support various database management systems. To further enhance its capabilities, Nguyen et al.~\parencite{nguyen2024files} introduced a new, comprehensive design for allocating and logging large objects, which has been integrated into Leanstore. Their performance study demonstrates that this approach not only outperforms many popular file systems but also ensures transactional consistency and durability for large objects. Given the crucial role that range locks play in their design, we integrated our concurrent range lock mechanism to enable realistic and rigorous benchmarking.
 
-    \addplot[
-        color=blue,
-        mark=*,
-    ] 
-    table[x=ts, y=tx, col sep=comma] {data/v0a.csv};
-    \addlegendentry{data/v0a.csv}
+In the proposed design, range locks are used to synchronize access to shared aliasing areas, which are contiguous ranges of virtual memory addresses used to present disjointed extents as contiguous memory. When a worker needs to allocate virtual memory for large BLOBs, particularly when these BLOBs exceed the size of the worker-local aliasing area, it must reserve free virtual memory from the shared aliasing area. To prevent concurrent workers from accessing overlapping memory regions, a range lock mechanism is employed. The range lock operates by locking specific ranges within the shared aliasing area, ensuring that only one worker can modify or access a particular memory range at a time. This prevents race conditions and ensures data consistency while allowing multiple workers to operate on different memory ranges simultaneously. 
 
-    \addplot[
-        color=red,
-        mark=square*,
-    ] 
-    table[x=ts, y=tx, col sep=comma] {data/v2a.csv};
-    \addlegendentry{data/v2a.csv}
+\subsection{Competitors}
 
-    \addplot[
-        color=green,
-        mark=triangle*,
-    ] 
-    table[x=ts, y=tx, col sep=comma] {data/v3a.csv};
-    \addlegendentry{data/v3a.csv}
+We integrated all three versions as described in Section \ref{sec:microbenchmark}. Additionally, we included the original, specifically optimized range lock version by the author as a fourth competitor. This range lock employs a bitmap and \texttt{compare-and-swap}, making it lightweight and efficient, especially for managing small to moderate numbers of logical blocks in memory.
 
-    \end{axis}
-\end{tikzpicture}
+\subsection{Workload}
 
-\end{document}
+The experiment, utilizing synthetic YCSB~\parencite{cooper2010benchmarking} workloads, was designed to evaluate the performance of LeanStore under a read-intensive, multithreaded environment. The workload comprises exclusively read operations, executed over a 10-second duration, with each read operation employing a straightforward \texttt{memcpy()} function. Each record in the workload has a payload size of 1 MB, with a total of 1000 records being processed. The experiment also incorporates a buffer management configuration that allocates 128 GB of virtual memory alongside 32 GB of physical memory, providing a robust test of LeanStore's ability to manage large data sets under constrained physical memory conditions.
+
+\subsection{Result}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=\textwidth,  % Increase the width of the plot
+            height=0.7\textwidth, % Adjust the height of the plot
+            title={Comparison of txn by increasing amount of thread worker},
+            title style={at={(0.5,1.1)}},
+            xlabel={Amount of worker thread},
+            ylabel={txn/s},
+            legend style={at={(0.5,-0.15)}, anchor=north, legend columns=4},
+            ymajorgrids=true,
+            grid style=dashed,
+            legend cell align={left},
+        ]
+
+        \addplot[color=blue,mark=none,line width=1pt] 
+        table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_0.csv};
+        \addlegendentry{Bitmap}
+
+        \addplot[color=red,mark=none,line width=1pt] 
+        table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_1.csv};
+        \addlegendentry{Our}
+
+        \addplot[color=black,mark=none,line width=1pt] 
+        table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_2.csv};
+        \addlegendentry{Scalable RL}
+
+        \addplot[color=orange,mark=none,line width=1pt] 
+        table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_3.csv};
+        \addlegendentry{Song RL}
+
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Comparison of transactions by increasing the number of thread workers.}
+    \label{fig:txn_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+
+    % First graph: cycle/s
+    \subfloat[Cycles by thread workers]{%
+        \begin{tikzpicture}
+            \begin{axis}[
+                width=0.8\textwidth,
+                height=0.35\textwidth,
+                ylabel={Cycles},
+                legend style={at={(0.95,0.95)}, anchor=north east, legend columns=1, font=\tiny},
+                ymajorgrids=true,
+                grid style=dashed,
+                legend cell align={left},
+            ]
+    
+            \addplot[color=blue,mark=none,line width=1pt] 
+            table[x=worker_count, y=cycle, col sep=comma] {data/var_0.csv};
+            \addlegendentry{Bitmap}
+    
+            \addplot[color=red,mark=none,line width=1pt] 
+            table[x=worker_count, y=cycle, col sep=comma] {data/var_1.csv};
+            \addlegendentry{Our}
+    
+            \addplot[color=black,mark=none,line width=1pt] 
+            table[x=worker_count, y=cycle, col sep=comma] {data/var_2.csv};
+            \addlegendentry{Scalable RL}
+    
+            \addplot[color=orange,mark=none,line width=1pt] 
+            table[x=worker_count, y=cycle, col sep=comma] {data/var_3.csv};
+            \addlegendentry{Song RL}
+    
+            \end{axis}
+        \end{tikzpicture}
+    }
+
+    % Second graph: instr
+    \subfloat[Instrs by thread workers]{%
+        \begin{tikzpicture}
+            \begin{axis}[
+                width=0.8\textwidth,
+                height=0.35\textwidth,
+                ylabel={Instrs},
+                legend style={at={(0.95,0.95)}, anchor=north east, legend columns=1, font=\tiny},
+                ymajorgrids=true,
+                grid style=dashed,
+                legend cell align={left},
+            ]
+    
+            \addplot[color=blue,mark=none,line width=1pt] 
+            table[x=worker_count, y=instr, col sep=comma] {data/var_0.csv};
+            \addlegendentry{Bitmap}
+    
+            \addplot[color=red,mark=none,line width=1pt] 
+            table[x=worker_count, y=instr, col sep=comma] {data/var_1.csv};
+            \addlegendentry{Our}
+    
+            \addplot[color=black,mark=none,line width=1pt] 
+            table[x=worker_count, y=instr, col sep=comma] {data/var_2.csv};
+            \addlegendentry{Scalable RL}
+    
+            \addplot[color=orange,mark=none,line width=1pt] 
+            table[x=worker_count, y=instr, col sep=comma] {data/var_3.csv};
+            \addlegendentry{Song RL}
+    
+            \end{axis}
+        \end{tikzpicture}%
+    }
+
+    % Third graph: L1-miss
+    \subfloat[L1-misses by thread workers]{%
+        \begin{tikzpicture}
+            \begin{axis}[
+                width=0.8\textwidth,
+                height=0.35\textwidth,
+                ylabel={L1-misses},
+                legend style={at={(0.95,0.95)}, anchor=north east, legend columns=1, font=\tiny},
+                ymajorgrids=true,
+                grid style=dashed,
+                legend cell align={left},
+            ]
+    
+            \addplot[color=blue,mark=none,line width=1pt] 
+            table[x=worker_count, y=L1-miss, col sep=comma] {data/var_0.csv};
+            \addlegendentry{Bitmap}
+    
+            \addplot[color=red,mark=none,line width=1pt] 
+            table[x=worker_count, y=L1-miss, col sep=comma] {data/var_1.csv};
+            \addlegendentry{Our}
+    
+            \addplot[color=black,mark=none,line width=1pt] 
+            table[x=worker_count, y=L1-miss, col sep=comma] {data/var_2.csv};
+            \addlegendentry{Scalable RL}
+    
+            \addplot[color=orange,mark=none,line width=1pt] 
+            table[x=worker_count, y=L1-miss, col sep=comma] {data/var_3.csv};
+            \addlegendentry{Song RL}
+    
+            \end{axis}
+        \end{tikzpicture}%
+    }
+
+    \caption{Comparison of cycles, instrs, and L1-misses by increasing the number of thread workers.}
+    \label{fig:comparison_metrics}
+\end{figure}
+

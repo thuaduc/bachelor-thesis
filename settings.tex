@@ -119,6 +119,26 @@
 }
 \lstset{style=mystyle}
 
+\lstdefinestyle{nonum}{
+  basicstyle=\scriptsize\ttfamily,
+  language=C++, % Set the language
+  backgroundcolor=\color{backcolour}, 
+  commentstyle=\color{codegreen},
+  breakatwhitespace=false,         
+  breaklines=true,                 
+  captionpos=b,                    
+  keepspaces=true,                 
+  showspaces=false,                
+  showstringspaces=false,
+  showtabs=false,                  
+  tabsize=1,
+  frame=single,
+  morekeywords=[0]{uint64_t, uintptr_t,class, public, private, void, const, if, else, for, while},
+  keywordstyle=[0]\bfseries\color{FireBrick},
+  numbers=none % Disable line numbers
+}
+\lstset{style=nonum}
+
 % Settings for pgfplots
 \pgfplotsset{compat=newest}
 \pgfplotsset{

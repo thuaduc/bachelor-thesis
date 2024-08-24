@@ -1,0 +1,37 @@
+bool ConcurrentRangeLock::find(uint64_t start, uint64_t end,
+    Node **preds, Node **succs) {
+    bool marked[1] = {false};
+    bool snip;
+    Node *pred, *succ, *curr;
+
+  retry:
+    while (true) {
+    pred = head;
+    for (int level = maxLevel; level >= 0; level--) {
+        curr = pred->next[level]->getReference();
+
+        while (start > curr->getStart()) {
+            succ = curr->next[level]->get(marked);
+            while (marked[0]) {
+                snip = pred->next[level]->compareAndSet(curr, succ, false, false);
+
+                if (!snip) goto retry;
+
+                curr = pred->next[level]->getReference();
+                succ = curr->next[level]->get(marked);
+            }
+            if (start >= curr->getStart()) {
+                pred = curr;
+                curr = succ;
+            } else {
+                break;
+            }
+        }
+
+        preds[level] = pred;
+        succs[level] = curr;
+    }
+        
+    return **condition**;
+    }
+}

@@ -1,0 +1,46 @@
+class AtomicMarkableReference {
+  private:
+    std::atomic<uintptr_t> atomicRefMark;
+
+    uintptr_t pack(Node* ref, bool mark) const {
+        return reinterpret_cast<uintptr_t>(ref) | (mark ? 1 : 0);
+    }
+
+    std::pair<Node*, bool> unpack(uintptr_t packed) const {
+        return {reinterpret_cast<Node*>(packed & -1), packed & 1};
+    }
+    
+  public:
+    AtomicMarkableReference() {
+        atomicRefMark.store(pack(nullptr, false), std::memory_order_relaxed);
+    }
+
+    void store(Node* ref, bool mark) {
+        atomicRefMark.store(pack(ref, mark), std::memory_order_relaxed);
+    }
+
+    bool compareAndSet(Node* expectedRef, Node* newRef, bool expectedMark, bool newMark) {
+        return atomicRefMark.compare_exchange_strong(
+            pack(expectedRef, expectedMark), pack(newRef, newMark), std::memory_order_acq_rel);
+    }
+
+    bool attemptMark(Node* expectedRef, bool newMark) {
+        auto [currentRef, currentMark] = unpack(atomicRefMark.load(std::memory_order_acquire));
+        if (currentRef == expectedRef && currentMark != newMark) {
+            return atomicRefMark.compare_exchange_strong(
+                current, pack(expectedRef, newMark), std::memory_order_acq_rel);
+        }
+        return false;
+    }
+
+    Node* get(bool* mark) const {
+        auto [ref, currentMark] = unpack(atomicRefMark.load(std::memory_order_acquire));
+        mark[0] = currentMark;
+        return ref;
+    }
+
+    Node* getReference() const {
+        auto [ref, _] = unpack(atomicRefMark.load(std::memory_order_acquire));
+        return ref;
+    }
+};

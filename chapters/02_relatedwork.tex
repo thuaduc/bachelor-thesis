@@ -2,7 +2,7 @@
 
 \section{Coarse-Grained Range Lock}
 
-\subsection{Tree-Based Range Lock}
+\subsection{Tree-Based Range Lock}\label{subsec:treebased}
 
 Several works have explored coarse-grained range-locking mechanisms. Jan Kara introduced a range-locking mechanism for the Linux kernel~\parencite{linuxRangeLockImpl2013}, which utilizes a range tree (specifically a red-black tree) to manage range locks and employs a spinlock for synchronization. Each lock is represented as a node in the tree. Similarly, Kim et al. adopted a comparable range-locking mechanism in their work on pNOVA~\parencite{kim2019pnova}, a variant of the NOVA file system that uses range-based reader-writer locks to enable parallel I/O within a single shared file.
 
@@ -39,3 +39,14 @@ When a thread wants to acquire a range, it iterates through the skip list. If it
 \subsubsection*{Drawbacks}
 
 \textbf{Linked List Inefficiency:} While this design implements a lock-free mechanism that effectively addresses the limitations of existing range locks, it comes with its own set of trade-offs. In general, insertion and lookup operations in a linked list are less efficient than in tree-like structures. The average time complexity for searching in a linked list is \( O(n) \), whereas it is only \( O(\log n) \) for skip lists or tree-like structures~\parencite{fomitchev2004lock}. Our evaluation will demonstrate that this inefficiency becomes particularly pronounced when handling multiple overlapping ranges within the list.
+
+\subsection{Bitmap Range Lock}
+
+In addition to the tree-based range locking method discussed in \ref{subsec:treebased}, Kim et al. proposed a lock-free range locking mechanism, which they claim offers enhanced efficiency compared to interval tree-based locks. 
+This approach involves dividing a file into segments, each managed by a 32-bit variable that functions as a reader-writer lock. The most significant bit represents the writer lock status (1 for locked, 0 for unlocked), while the remaining 31 bits count the number of active readers. 
+The mechanism utilizes hardware-supported atomic operations to ensure that writer locks can only be set when no other locks are active and that reader locks are granted as long as no writer lock is present. 
+Unlocking is achieved by clearing the writer lock bit and decrementing the reader counter. 
+
+Although this method provides finer-grained locking with reduced overhead compared to interval tree-based locks, it is tailored to handle both reader and writer modes and depends on specific memory size constraints. 
+Since our research focuses exclusively on the exclusive mode and does not address the reader-writer combination, we have chosen not to consider this approach as a competitor in our project.
+

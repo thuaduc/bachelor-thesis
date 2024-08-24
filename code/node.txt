@@ -1,0 +1,28 @@
+class Node {
+  private:
+    uint64_t start, end;
+    int topLevel;
+    AtomicMarkableReference** next = nullptr;
+
+  public:
+    void initialize(uint64_t start, uint64_t end, int topLevel) {
+        this->start = start; this->end = end;
+        this->topLevel = topLevel;
+
+        next = new AtomicMarkableReference*[topLevel + 1];
+        for (int i = 0; i <= topLevel; ++i) {
+            next[i] = new AtomicMarkableReference();
+        }
+    }
+
+    void initializeHead(uint64_t start, uint64_t end, int topLevel, Node* tail) {
+        initialize(start, end, topLevel);
+        for (int i = 0; i <= topLevel; ++i){
+            next[i]->store(tail, false);
+        }
+    }
+
+    int getTopLevel() const { return topLevel; }
+    uint64_t getStart() const { return start; }
+    uint64_t getEnd() const { return end; }
+};
