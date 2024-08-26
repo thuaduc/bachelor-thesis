@@ -14,7 +14,7 @@ One significant observation is that the coarse-grained spinlock of an interval t
 
 Consider three exclusive lock requests for the ranges \( A = [1..3], \; B = [2..7], \; \text{and} \; C = [4..5] \), arriving in that order. While A holds the lock, B is blocked because it overlaps with A, and C is blocked behind B. However, in practice, C does not overlap with A and could proceed without waiting. This unnecessary blocking reduces the overall efficiency and concurrency of the system.
 
-\subsection{List-Based Range Lock}
+\subsection{List-Based Range Lock}\label{subsec:listbase}
 
 Song et al.~\parencite{song2013parallelizing} introduced a dynamic range-locking design to enhance the implementation of the Linux kernel. Their range lock uses a skip list~\parencite{pugh1990skip} to dynamically manage the address ranges that are currently locked.
 

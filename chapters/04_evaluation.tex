@@ -8,19 +8,19 @@ We denote our main implementation as \texttt{Our}. In addition to \texttt{Our}, 
 
 \section{Benchmark enviroment}
 
+For benchmark purposes, we utilized a server with an AMD Ryzen 9 7950X processor, which features 16 cores and 32 threads, providing substantial computational power for the experiments. The server configuration included a virtual memory cache with a capacity of 128 GB, backed by 32 GB of physical memory. The cache management aimed to minimize eviction sizes to enhance performance and reliability during the benchmarks.
+
 \section{Microbenchmark}\label{sec:microbenchmark}
 
 \subsection{Workload}\label{subsec:workload}
-The primary objective of a concurrent range lock mechanism is to enable multiple threads to access disjoint parts of the same shared object efficiently. To simulate and evaluate the effectiveness of different range locking strategies, we utilize the \texttt{mmap()} system call to create a shared object in memory, and the \texttt{memset()} function to simulate write operations to this shared object. The use of \texttt{memset()} serves as a placeholder for actual modifications, enabling us to focus on the performance characteristics of the locking mechanism itself.
+The primary objective of a concurrent range lock mechanism is to enable multiple threads to access disjoint parts of the same shared object efficiently. To simulate and evaluate the effectiveness of different range locking strategies, we utilize the \texttt{mmap()} system call to create a shared object in memory, and the \texttt{memset()} function to simulate write operations to this shared object. For each ranges we will write 1KB. The use of \texttt{memset()} serves as a placeholder for actual modifications, enabling us to focus on the performance characteristics of the locking mechanism itself.
 
 To explore various levels of contention and potential usage scenarios for range locks, we have devised three distinct workload, each designed to stress the locking mechanism under different conditions:
 
 \begin{itemize} 
-    \item \textbf{\texttt{W1}:} In this workload, each thread accumulates a list of ranges that it intends to modify. Once all ranges in the working queue are identified, the thread locks all these ranges simultaneously, performs the necessary modifications, and then releases all the locks at the same time. This approach is designed to simulate scenarios where threads must work with a large number of ranges concurrently, testing the scalability of the range lock mechanism when it is required to manage a significant number of simultaneous locks. The primary goal of \texttt{V1} is to assess how well the range lock can handle heavy contention when multiple threads attempt to lock numerous ranges at once.
+    \item \textbf{\texttt{W1}:} In this workload, each thread operates with fine granularity. A thread locks a single memory range, performs a modification (simulated by \texttt{memset()}), and immediately releases the lock before proceeding to the next range in its queue. This approach simulates a scenario with minimal contention, focusing on the efficiency of the lock mechanism in handling rapid lock acquisition and release cycles. The primary objective is to assess the overhead introduced by the locking mechanism under low contention and to evaluate its performance in scenarios demanding high throughput with minimal waiting times.
     
-    \item \textbf{\texttt{W2}:} In this workload, each thread operates in a more granular fashion. A thread locks a single range, performs the modification (simulated by \texttt{memset()}), and immediately releases the lock before moving on to the next range in its working queue. This workload simulates a scenario with minimal contention, where the range lock mechanism is tested for its efficiency in handling rapid lock acquisition and release cycles. The objective here is to observe the overhead introduced by the locking mechanism when contention is low and to evaluate the lock's performance in scenarios that demand high throughput with minimal waiting times.
-    
-    \item \textbf{\texttt{W3}:} The third workload introduces a hybrid approach, combining elements of both \texttt{V1} and \texttt{V2}. In this workload, a thread locks a range and then releases it immediately with a probability of 95\%. In the remaining 5\% of cases, the thread holds onto the lock and not release. This workload is designed to create a scenario where the lock occasionally becomes more congested, thereby allowing us to evaluate the efficiency of the range lock under conditions where some ranges are held longer, potentially causing increased contention. The purpose of \texttt{V3} is to simulate real-world scenarios where not all operations are equal in duration, and some threads may need to hold locks for longer, testing the lock's ability to handle such situations without significant performance degradation.
+    \item \textbf{\texttt{W2}:} This workload introduces a more complex and realistic scenario. Here, threads perform batched memory operations, where a series of memory ranges (typically 16) are locked, modified (simulated by \texttt{memset()}), and then unlocked in a single batch. The goal is to test all variants under heavier threaded conditions. By locking and unlocking in batches, the number of ranges within the data structure increases, providing insight into how efficiently each variant can search, lock, and unlock ranges as the load increases. This workload emphasizes the performance of the locking mechanism in handling more substantial, real-world use cases where contention may be higher.
 \end{itemize}
 
 Through these workload, we aim to comprehensively evaluate the performance of the concurrent range lock mechanism under different workloads and contention scenarios. Each workload provides insights into specific aspects of the lock's scalability, efficiency, and overall robustness in handling varying degrees of parallelism and contention.
@@ -40,27 +40,18 @@ The height of the skip list in our range locking mechanism plays a critical role
             width=0.8\textwidth,
             height=0.6\textwidth,
             enlargelimits=false,
-            ymax=0.1,
-            legend style={at={(0.5,-0.15)},anchor=north,legend columns=-1},
+            ymax=0.08,
+            mark options={solid},
+            enlarge x limits={abs=0.75cm},
+            enlarge y limits=false,
+            legend style={at={(0.5,-0.25)},anchor=north,legend columns=-1},
         ]
-        \addplot[
-            color=blue,
-            mark=o,
-            ]
+        \addplot[color=black,line width=0.7pt]
+        table[x=Height,y=Runtime,col sep=comma] {data/height2.csv};
+        \addplot[color=red,line width=0.7pt]
             table[x=Height,y=Runtime,col sep=comma] {data/height1.csv};
-        \addplot[
-            color=red,
-            mark=square,
-            ]
-            table[x=Height,y=Runtime,col sep=comma] {data/height2.csv};
-        \addplot[
-            color=green,
-            mark=triangle,
-            ]
-            table[x=Height,y=Runtime,col sep=comma] {data/height3.csv};
-        \legend{V1, V2, V3}
+        \legend{W1, W2}
 
-        % Drawing a vertical line from x=7 to the top of the graph
         \draw[dashed, thick] (axis cs:10,0) -- (axis cs:10,0.1);
 
         \end{axis}
@@ -68,18 +59,83 @@ The height of the skip list in our range locking mechanism plays a critical role
     \caption{Runtime for different heights of range lock}
 \end{figure}
 
+For \textbf{W1}, where contention is minimal and each thread locks and releases ranges immediately, the height of the skip list has negligible impact on performance. In this scenario, since the number of ranges locked at any given time is limited to the number of active worker threads, the benefits of a taller skip list are not realized. The overhead of managing additional levels outweighs any potential gains, leading to similar performance across different heights.
 
-For both \textbf{W1} and \textbf{W3}, we observe that total runtime decreases as the height of the skip list increases, which is consistent with the expected behavior of skip lists. The skip list's multi-level structure allows for faster lookups as the height increases, reducing the overall runtime. However, beyond a height of 10, we notice a plateau where increasing the height yields diminishing returns. This phenomenon can be explained by the probabilistic nature of skip list level assignment, as detailed in \ref{subsec:howitwork}. Since the probability of a node being elevated to a higher level decreases linearly. For example, for level 12, the probability is approximately \(\frac{1}{2^{12}} \approx 0.00024\%\). The uppermost layers of the skip list become sparsely populated, rendering them less impactful on performance. Despite this, these higher levels still contribute to increased memory usage without significant performance benefits.
-
-For \textbf{W2}, where contention is minimal and each thread locks and releases ranges immediately, the height of the skip list has negligible impact on performance. In this scenario, since the number of ranges locked at any given time is limited to the number of active worker threads, the benefits of a taller skip list are not realized. The overhead of managing additional levels outweighs any potential gains, leading to similar performance across different heights.
+For \textbf{W2}, the total runtime decreases as the skip list height increases, aligning with the expected behavior. The multi-level structure of skip lists allows for faster lookups, reducing runtime as height increases. However, beyond a height of 10, further increases yield diminishing returns. This is due to the probabilistic level assignment in skip lists, where the chance of a node reaching higher levels decreases exponentially (e.g., level 12 has a probability of about \(\frac{1}{2^{12}} \approx 0.00024\%\)). The sparsely populated upper levels contribute little to performance improvement but increase memory usage.
 
 Based on these observations, we identify a sweet spot at a height of \texttt{10}, where the trade-off between performance and resource utilization is optimized. This height balances the need for efficient lookups with manageable memory overhead, making it the ideal choice for our range locking mechanism in subsequent benchmarks.
 
 \subsection{Result}
 
-... 
+Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} variant has good scalability and outperforms the other two. We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. However, in more realistic scenarios, such as those discussed in \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
 
-\section{Leanstore}
+Figure \ref{fig:workload2} illustrates the same result for \textbf{W2}, \texttt{Our} variant continued to outperform the others, achieving two to nine times more operations than \texttt{Scalable RL} and two to six times more than \texttt{Song RL}. In this workload, the number of ranges locked simultaneously increases to the number of threads multiplied by the batch size (16). This allowed \texttt{Song RL} to perform significantly better compared to \texttt{Scalable RL}. However, \texttt{Scalable RL} demonstrated better scalability as the number of worker threads increased. Beyond sixteen threads, \texttt{Scalable RL} began to surpass \texttt{Song RL} in performance.
+
+In summary, \texttt{Our} variant consistently outperforms both \texttt{Scalable RL} and \texttt{Song RL} across different workloads. While \texttt{Song RL} struggles with contention in \textbf{W1}, it performs better in more complex scenarios like \textbf{W2}. However, \texttt{Scalable RL} demonstrates better scalability with increasing thread counts, eventually surpassing \texttt{Song RL} as threads increase.
+
+\begin{figure}[H]
+    \begin{tikzpicture}
+        \centering
+        \begin{axis}[
+            width=\textwidth,
+            height=0.45\textwidth,
+            symbolic x coords={4,8,12,16,20,24,28,32},
+            xtick=data,
+            grid=minor,
+            ylabel={Total number of locks and unlock per second},
+            xlabel={Total number of worker threads},
+            ymax=18000000,
+            ymin=-1,
+            mark options={solid},
+            nodes near coords,
+            every node near coord/.append style={font=\tiny},
+            enlarge x limits={abs=0.75cm},
+            enlarge y limits=false,
+            legend style={at={(0.5,-0.25)}, anchor=north,legend columns=-1},
+        ]
+            \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v0.csv};
+            \addplot[color=black,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v2.csv};
+            \addplot[color=orange,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v3.csv};
+            \legend{Our, Scalable RL, Song RL}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Microbenchmark for workload \textbf{W1}}
+    \label{fig:workload1}
+\end{figure}
+
+\begin{figure}[H]
+    \begin{tikzpicture}
+        \centering
+        \begin{axis}[
+            width=\textwidth,
+            height=0.45\textwidth,
+            symbolic x coords={4,8,12,16,20,24,28,32},
+            xtick=data,
+            grid=minor,
+            ylabel={Total number of locks and unlock per second},
+            xlabel={Total number of worker threads},
+            ymax=1300000,
+            ymin=-1,
+            mark options={solid},
+            nodes near coords,
+            every node near coord/.append style={font=\tiny},
+            enlarge x limits={abs=0.75cm},
+            enlarge y limits=false,
+            legend style={at={(0.5,-0.25)}, anchor=north,legend columns=-1},
+        ]
+            \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v0.csv};
+            \addplot[color=black,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v2.csv};
+            \addplot[color=orange,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v3.csv};
+            \legend{Our, Scalable RL, Song RL}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Microbenchmark for workload \textbf{W2}}
+    \label{fig:workload2}
+\end{figure}
+
+\newpage
+
+\section{Leanstore}\label{sec:leanstore}
 
 \texttt{Leanstore}~\parencite{leis2018leanstore} is a high-performance storage engine designed to support various database management systems. To further enhance its capabilities, Nguyen et al.~\parencite{nguyen2024files} introduced a new, comprehensive design for allocating and logging large objects, which has been integrated into Leanstore. Their performance study demonstrates that this approach not only outperforms many popular file systems but also ensures transactional consistency and durability for large objects. Given the crucial role that range locks play in their design, we integrated our concurrent range lock mechanism to enable realistic and rigorous benchmarking.
 
@@ -99,31 +155,31 @@ The experiment, utilizing synthetic YCSB~\parencite{cooper2010benchmarking} work
     \centering
     \begin{tikzpicture}
         \begin{axis}[
-            width=\textwidth,  % Increase the width of the plot
-            height=0.7\textwidth, % Adjust the height of the plot
+            width=\textwidth,
+            height=0.7\textwidth,
             title={Comparison of txn by increasing amount of thread worker},
             title style={at={(0.5,1.1)}},
             xlabel={Amount of worker thread},
             ylabel={txn/s},
-            legend style={at={(0.5,-0.15)}, anchor=north, legend columns=4},
+            mark options={solid},
+            legend style={at={(0.5,-0.25)}, anchor=north, legend columns=4},
             ymajorgrids=true,
-            grid style=dashed,
             legend cell align={left},
         ]
 
-        \addplot[color=blue,mark=none,line width=1pt] 
+        \addplot[color=blue,mark=none,line width=0.7pt] 
         table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_0.csv};
         \addlegendentry{Bitmap}
 
-        \addplot[color=red,mark=none,line width=1pt] 
+        \addplot[color=red,mark=none,line width=0.7pt] 
         table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_1.csv};
         \addlegendentry{Our}
 
-        \addplot[color=black,mark=none,line width=1pt] 
+        \addplot[color=black,mark=none,line width=0.7pt] 
         table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_2.csv};
         \addlegendentry{Scalable RL}
 
-        \addplot[color=orange,mark=none,line width=1pt] 
+        \addplot[color=orange,mark=none,line width=0.7pt] 
         table[x=worker_count, y expr=\thisrow{txn}/10, col sep=comma] {data/var_3.csv};
         \addlegendentry{Song RL}
 
@@ -133,7 +189,16 @@ The experiment, utilizing synthetic YCSB~\parencite{cooper2010benchmarking} work
     \label{fig:txn_comparison}
 \end{figure}
 
-\begin{figure}[H]
+We evaluated the throughput of four distinct variants as the number of worker threads increased, as depicted in Figure \ref{fig:txn_comparison}. As anticipated, the \texttt{Bitmap} implementation consistently outperformed the other three variants. This superiority can be largely attributed to its optimized use of the aliasing arena, which makes it the most efficient in handling the workload. Our implementation (\texttt{Our}) demonstrated competitive performance, closely trailing \texttt{Bitmap} in terms of transactions per second. Both \texttt{Bitmap} and \texttt{Our} showed effective scalability with an increasing number of worker threads, though \texttt{Bitmap} maintained a consistent, albeit slight, performance advantage.
+
+Conversely, \texttt{Song RL} initially exhibited strong throughput but encountered a sharp decline beyond 24 worker threads. This decline underscores the limitations of its coarse-grained range lock mechanism, as discussed in \ref{subsec:listbase}. The single spinlock in \texttt{Song RL} becomes a significant bottleneck in high-contention scenarios, leading to marked performance degradation. On the other hand, the \texttt{Scalable RL} variant showed steady, linear throughput growth. However, its overall performance remained considerably lower than the other variants, highlighting its limitations.
+
+An additional key observation is the difficulty faced by the \texttt{Bitmap}, \texttt{Our}, and \texttt{Song RL} variants in scaling effectively beyond 16 worker threads. This limitation is largely due to the BLOB size in our workload. With a BLOB size of 1MB and 16 worker threads, the combined size of the client-side buffer and the internal DBMS memory block for the BLOB exceeds the L2 cache capacity (16MB in our machine), resulting in significant contention at the L2 cache. Furthermore, LeanStore's use of \texttt{memcpy} for read operations exacerbates this issue. Each 1MB BLOB consumes 2MB of memory due to \texttt{memcpy} during read and write operations. Given an average throughput of approximately 60,000 operations per second, this equates to over 110 GB of memory consumed by \texttt{memcpy}, which saturates the memory bandwidth and hinders the application's ability to scale.
+
+We also analyzed other performance metrics, such as cycles, instructions, and L1 cache misses. As illustrated in Figure \ref{fig:comparison_metrics}, both the \texttt{Bitmap} and \texttt{Our} implementations maintained stable levels of cycles, instructions, and L1 cache misses as the number of threads increased. In contrast, \texttt{Song RL} exhibited a significant rise in the number of instructions with additional threads, indicating inefficiencies under higher loads. Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasing number of L1 misses and instructions as the workload intensified.
+
+
+\begin{figure}[h]
     \centering
 
     % First graph: cycle/s
@@ -143,7 +208,7 @@ The experiment, utilizing synthetic YCSB~\parencite{cooper2010benchmarking} work
                 width=0.8\textwidth,
                 height=0.35\textwidth,
                 ylabel={Cycles},
-                legend style={at={(0.95,0.95)}, anchor=north east, legend columns=1, font=\tiny},
+                legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
                 ymajorgrids=true,
                 grid style=dashed,
                 legend cell align={left},
@@ -170,13 +235,13 @@ The experiment, utilizing synthetic YCSB~\parencite{cooper2010benchmarking} work
     }
 
     % Second graph: instr
-    \subfloat[Instrs by thread workers]{%
+    \subfloat[Instructions by thread workers]{%
         \begin{tikzpicture}
             \begin{axis}[
                 width=0.8\textwidth,
                 height=0.35\textwidth,
                 ylabel={Instrs},
-                legend style={at={(0.95,0.95)}, anchor=north east, legend columns=1, font=\tiny},
+                legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
                 ymajorgrids=true,
                 grid style=dashed,
                 legend cell align={left},
@@ -209,7 +274,7 @@ The experiment, utilizing synthetic YCSB~\parencite{cooper2010benchmarking} work
                 width=0.8\textwidth,
                 height=0.35\textwidth,
                 ylabel={L1-misses},
-                legend style={at={(0.95,0.95)}, anchor=north east, legend columns=1, font=\tiny},
+                legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
                 ymajorgrids=true,
                 grid style=dashed,
                 legend cell align={left},
