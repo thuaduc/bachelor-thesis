@@ -135,6 +135,7 @@ In summary, \texttt{Our} variant consistently outperforms both \texttt{Scalable 
 
 \newpage
 
+% Duy: real-world scenarios, sau đó diễn giải leanstore -> BLOB
 \section{Leanstore}\label{sec:leanstore}
 
 \texttt{Leanstore}~\parencite{leis2018leanstore} is a high-performance storage engine designed to support various database management systems. To further enhance its capabilities, Nguyen et al.~\parencite{nguyen2024files} introduced a new, comprehensive design for allocating and logging large objects, which has been integrated into Leanstore. Their performance study demonstrates that this approach not only outperforms many popular file systems but also ensures transactional consistency and durability for large objects. Given the crucial role that range locks play in their design, we integrated our concurrent range lock mechanism to enable realistic and rigorous benchmarking.

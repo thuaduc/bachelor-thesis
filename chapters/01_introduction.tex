@@ -2,12 +2,22 @@
 
 \chapter{Introduction}\label{chapter:introduction}
 
-\textbf{Locking mechanism is important.}
-In modern computing environments, the efficiency of locking mechanisms is pivotal to the performance of various systems, including databases~\parencite{lomet1993key, graefe2007hierarchical}, file systems~\parencite{lee2021concurrent, gao2023citron, lee2019write}, and operating systems~\parencite{readerWriterLocks2017, mmapSem2017}. The need for more advanced and fine-grained locking mechanisms becomes critical as these systems continue to scale and increase complexity. A key challenge in this context is the management of concurrent access to shared resources. Traditional locking techniques, such as single-lock mechanisms, often introduce significant performance bottlenecks, especially in scenarios with high concurrency, thereby underscoring the necessity for more sophisticated approaches to locking.
+% Duy: Mình có thể specify thêm 1 ý là: range-lock là 1 under-studied topic, trong khi nó khá quan trọng, rồi liệt kê use-cases.
+% Duy: Trong các use case đó, nếu không có range lock thì system synchronize concurrent threads kiểu gì ...... -> inefficient. Sau đó thì nếu có range lock thì sẽ tốt hơn ra sao
+% Duy: Sau đó thì xét sâu hơn, existing range locks inefficient/bất hợp lí/cùi bắp như nào -> motivate us to rethink range lock blah blah
+% Duy: Thêm 1 câu chốt là our range lock is at least X times faster/cheaper than .....   
 
+\textbf{Locking is important.}
+In modern applications, the efficiency of locking mechanisms is pivotal to the performance of various systems, including databases~\parencite{lomet1993key, graefe2007hierarchical}, file systems~\parencite{lee2021concurrent, gao2023citron, lee2019write}, and operating systems~\parencite{readerWriterLocks2017, mmapSem2017}. 
+% Duy: fine-grained không đúng/hợp lí trong context này lắm. "Mechanisms" lắp lại hơi nhiều. "scale and increase complexity" -> action này là do developer tạo ra chứ không phải cái "system" tạo ra nhé
+The need for more advanced and fine-grained locking mechanisms becomes critical as these systems continue to scale and increase complexity. 
+A key challenge in this context is the management of concurrent access to shared resources. Traditional locking techniques, such as single-lock mechanisms, often introduce significant performance bottlenecks, especially in scenarios with high concurrency, thereby underscoring the necessity for more sophisticated approaches to locking.
+
+% Duy: boot -> boost? Sử dụng "improve" nghe chắc cũng hợp lí hơn. Cơ mà paragraph này không hợp lí lắm
 \textbf{Range locks boot performance through resource segmentation.} 
 Range lock~\parencite{gao2023citron, kogan2020scalable} provides a more refined approach to this challenge by partitioning a shared resource into multiple arbitrary-sized segments. Different processes can exclusively acquire each of these segments. This strategy effectively addresses the drawbacks and bottlenecks associated with single-lock methods, significantly improving the performance.
 
+% Duy: Lắm "need range lock" quá, Merge cả 3 para này vào làm 1 đi
 \textbf{DBMS needs range locks.}
 Range locking is crucial in database management systems, particularly for ensuring data consistency and preventing anomalies such as "phantoms" in high-concurrency environments. 
 When transactions require strict isolation, as under the serializable isolation level, range locks are used to secure not only the individual records within a specified range but also the gaps between these records. 
@@ -21,9 +31,17 @@ In high-performance file systems, particularly those used in large-scale and dis
 \textbf{Operating system needs range locks.}
 There has been growing interest in using range locks within the Linux kernel community. The focus is on using range locks to alleviate contention issues associated with \texttt{mmap\_sem}, a semaphore that manages access to virtual memory areas (VMAs). VMAs represent distinct sections of an application's virtual address space and are organized in a red-black tree. The \texttt{mmap\_sem} semaphore controls access for various operations such as memory mapping, unmapping, protection, and handling page faults. This becomes problematic for data-intensive applications with large, dynamically allocated memory, as contention on this semaphore can become a significant performance bottleneck.
 
+% Duy: needs improvements -> not efficient
 \textbf{Existing range lock needs improvement.}
 Previous implementations of range-locking mechanisms often need to improve their performance. These implementations often suffer from contention points due to the reliance on a single lock~\parencite{linuxRangeLockImpl2013, song2013parallelizing}. Additionally, some methods may be complex and tightly coupled with lock-based concurrency control protocols, which are not applicable for general DBMS operations~\parencite{graefe2007hierarchical, andy2022database}. These limitations underscore the need for more refined and scalable solutions that can better handle the demands of modern, large-scale systems.
 
-\textbf{New concurrent range-locking design.} In this research's scope, we propose a new lock-free concurrent range-locking design. We address previous bottleneck issues by leveraging a probabilistic concurrent skip list~\parencite{herlihy2006provably, herlihy2020art} and replace traditional locking by \texttt{compare-and-swap} methods. By doing so, we address the previous range lock bottleneck issues and maintain the lock's high level of performance.
+% Duy: research's scope -> thesis. Tất cả mấy từ "research" dùng trong context từa tựa thế này thì dùng từ "thesis" ấy.
+\textbf{Contributions.} In this research's scope, we propose a new lock-free concurrent range-locking design.
+% Duy: Câu này cảm giác "sao sao" ấy, compare-and-swap hơi thừa, và bản chất "gần như" đã bao gồm trong "lock-free".
+We address previous bottleneck issues by leveraging a probabilistic concurrent skip list~\parencite{herlihy2006provably, herlihy2020art} and replace traditional locking by \texttt{compare-and-swap} methods. 
+% Duy: Trong professional wwriting, hạn chế dùng "'s" nhé. "maintain the lock's high level of performance." -> cũng hơi sao sao đó, 
+% Duy: bản chất thesis khác với paper, không cần "state-of-the-art" hay là mấy cái cao lương mỹ vị. Đọc example thesis dưới đây phần intro xem bọn nó viết contributions như nào:
+% https://db.in.tum.de/people/sites/ellmann/theses/finished/24/wuerth_effects_of_linux_vfio.pdf?lang=en
+By doing so, we address the previous range lock bottleneck issues and maintain the lock's high level of performance.
 
 \textbf{Outline of the research.} The scope of this research includes developing and evaluating the proposed range-locking mechanism. We will evaluate focusing on performance under heavy concurrent accesses, ensuring the correctness of data access in overlapping ranges and concurrent operations. Additionally, we will compare the performance of the proposed solution with existing state-of-the-art approaches to provide a comprehensive assessment of its effectiveness.
