@@ -1,0 +1,24 @@
+% !TeX root = ../main.tex
+% Add the above to each chapter to make compiling the PDF easier in some editors.
+
+\chapter{Conclusion}\label{chapter:conclusion}
+
+In this thesis, we presented a novel lock-free concurrent range-locking mechanism designed to address the bottlenecks and inefficiencies observed in existing range-locking approaches. Through developing and rigorously evaluating our proposed method, we demonstrated its superiority in various high-concurrency environments, particularly in large-scale distributed systems where efficient access control is paramount.
+
+Our research began by identifying the limitations of traditional range-locking techniques, such as the bottlenecks introduced by coarse-grained locking and the inefficiencies in tree and list-based range locks. While effective in some scenarios, these methods often fall short in high-performance computing environments due to their susceptibility to contention and their reliance on locking mechanisms that do not scale well with increasing concurrency.
+To overcome these challenges, we introduced a concurrent range lock based on a probabilistic skip list structure, which leverages atomic operations such as \texttt{compareAndSet} to manage node references without the need for locks. This design eliminates the bottlenecks associated with traditional locking mechanisms and maintains robust concurrency performance even under heavy load.
+Our extensive evaluation, including microbenchmarks and integration into a high-performance storage engine like Leanstore, highlighted the efficiency and scalability of our approach. The results showed that our concurrent range lock outperformed existing methods, including scalable range locks and skip-list-based locks, across various workloads and thread counts. Notably, our mechanism achieved significant improvements in throughput and reduced contention, making it well-suited for modern distributed systems requiring high concurrency levels.
+
+This thesis presents an improvement in managing multiple users or processes accessing data simultaneously, providing a scalable and effective method for dealing with environments where many tasks are happening simultaneously. Our research sets the stage for further studies on systems and structures that do not require locking mechanisms for access control. We believe our developed approaches will be widely helpful in scholarly studies and real-world applications.
+
+\chapter{Future work}\label{chapter:futurework}
+
+While our proposed mechanism shows significant improvements, there are still areas that need further exploration and optimization. One key observation from our benchmarking is that our implementation, referred to as \texttt{Our}, does not scale as well as \texttt{Scalable RL} when it comes to handling workloads that extend beyond L3 cache lines. This scalability issue highlights an area where we can enhance performance, especially in scenarios where cache efficiency is crucial. Addressing this will be essential to ensure that our approach can scale effectively in high-performance environments.
+
+Another important area that requires attention is memory deallocation. Our current design lacks an efficient strategy for managing memory deallocation, which could lead to memory leaks or unnecessary memory usage over time. Developing a robust solution for this issue is crucial to improving the overall efficiency and reliability of our range-locking mechanism.
+
+We also plan to conduct a detailed analysis of memory overhead. Since our implementation uses additional layers of linked lists to maintain the skip list and includes abstractions like \texttt{AtomicMarkableReference}, there is a memory overhead associated with these structures. By analyzing this overhead and comparing it with other variants, we can gain insights into the trade-offs between memory usage and performance, helping us refine our approach further.
+
+Additionally, we are interested in exploring how our concurrent range lock can be integrated with other data structures or applied in different contexts. This could provide further insights and improvements. For example, we have identified a version of range lock used in PerconaFT \parencite{perconaft}, where a lock tree is implemented. Investigating how our design could benefit from or be adapted to include such techniques could lead to new opportunities for improving the flexibility and applicability of our approach.
+
+In summary, while our current design offers significant advancements, addressing these areas of optimization, memory management, and integration will be key to advancing the state of concurrent range-locking mechanisms. These future efforts will not only enhance the performance and efficiency of our mechanism but also expand its usefulness across various high-concurrency environments.

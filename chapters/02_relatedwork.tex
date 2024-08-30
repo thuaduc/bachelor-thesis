@@ -30,7 +30,7 @@ Similar to the tree-based range lock, contention remains an issue with this appr
 
 \subsection{List-Based Range Lock}
 
-Kogan et al.~\parencite{kogan2020scalable} introduced a novel range lock based on a concurrent linked list, where each node represents an acquired range. This design aims to provide a lock-free mechanism, addressing critical shortcomings of previous range-locking implementations. In a lock-free system, processes can proceed without being blocked by locks held by other processes, thereby improving performance and scalability.
+Kogan et al.~\parencite{kogan2020scalable} introduced a range lock based on a concurrent linked list, where each node represents an acquired range. This design aims to provide a lock-free mechanism, addressing critical shortcomings of previous range-locking implementations. In a lock-free system, processes can proceed without being blocked by locks held by other processes, thereby improving performance and scalability.
 
 The proposed method involves inserting acquired ranges into a linked list sorted by their starting points, ensuring that only one range from a group of overlapping ranges can be inserted using an atomic \texttt{compare-and-swap} (CAS) operation. A significant difference in this method compared to previous ones is that each node has two statuses: \texttt{marked} (logically deleted) or \texttt{unmarked} (present).
 
@@ -48,5 +48,5 @@ The mechanism utilizes hardware-supported atomic operations to ensure that write
 Unlocking is achieved by clearing the writer lock bit and decrementing the reader counter. 
 
 Although this method provides finer-grained locking with reduced overhead compared to interval tree-based locks, it is tailored to handle both reader and writer modes and depends on specific memory size constraints. 
-Since our research focuses exclusively on the exclusive mode and does not address the reader-writer combination, we have chosen not to consider this approach as a competitor in our project.
+Since our research focuses exclusively on the exclusive mode and does not address the reader-writer combination, we have chosen not to consider this approach as a variant in our project.
 

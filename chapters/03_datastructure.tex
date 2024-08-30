@@ -1,0 +1,93 @@
+\chapter{Data structure}\label{ch:data-structure}
+
+\section{Skiplist is suitable for range lock}
+The effectiveness of a range lock is strongly influenced by the underlying data structure used to manage these ranges. 
+Existing range locks have used many different comparison-based data structures, such as interval tree~\parencite{linuxRangeLockImpl2013, kim2019pnova}, linked list~\parencite{song2013parallelizing}, skip list~\parencite{kogan2020scalable} and bitmap~\parencite{kim2019pnova, nguyen2024files}, each of which has advantages and disadvantages. 
+
+Interval trees are considered heavyweight compared to linked lists and skip lists because they require complex balancing mechanisms to maintain efficient search times, which adds significant computational and memory overhead. 
+Interval trees also require the maintenance of additional data, such as subtree intervals, making them more resource-intensive. This makes interval trees unsuitable for range locking. 
+
+Linked lists have minimal structure and are easy to implement and maintain. However, it is very expensive in terms of Insert/Delete time. The complexity O(n) for the average case of search becomes a significant disadvantage when the number of ranges increases, 
+
+Bitmaps are another alternative, especially in scenarios where the size of the shared resource is known in advance. However, bitmaps are expensive for writing areas into the map. 
+For example, in range locking based on the bitmap version from the work of Nguyen et al.~\parencite{nguyen2024files}, they write range directly on the map and reverse in case they reach a set bit. 
+This results in an average case for lock operation of O(n), where n is the size of the range, making it inefficient for range locking. 
+In addition, bitmap range locks need to know the size of the shared object in advance. They need one bit for each block. 
+So, even if we only have one or two areas in the lock, we would still need the total size of the bitmap, which is unnecessary.  
+
+Skiplists strike a balance between the heaviness of interval trees and the simplicity of linked lists. Despite their theoretically poor worst-case performance, skip lists rarely exhibit worst-case behavior, making them efficient in most scenarios.
+For example, in a dictionary with more than 250 entries, the probability that a search will take more than three times the expected time is less than one in a million~\parencite{pugh1990skip2}. 
+Skip lists are, therefore, ideal for implementing range lock.
+
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+        \hline
+        \textbf{Data Structure} & \textbf{Best Case} & \textbf{Average Case} & \textbf{Worst Case} \\ \hline
+        \textbf{Linked List} & $O(1)$ & $O(n)$ & $O(n)$ \\ \hline
+        \textbf{Skip List} & $O(1)$ & $O(logn)$ & $O(n)$ \\ \hline
+        \textbf{Interval Tree} & $O(\log n)$ & $O(\log n)$ & $O(\log n)$ \\ \hline
+        \textbf{Bitmap} & $O(1)$ & $O(n)$ & $O(n)$ \\ \hline
+    \end{tabular}
+    \caption{Time complexities of Insert/Delete operations in \\ Linked List, Skip List, Interval Tree, and Bitmap}
+    \label{tab:insertdeletecomplexity}
+\end{table}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./figures/skiplist.png}
+    \caption{An example of a skip list. It has five levels of sorted linked lists.}
+    \label{fig:skiplist}
+\end{figure}
+
+\section{Modification of skiplist for concurrent range lock}
+
+We developed our concurrent range lock based on the \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}.
+In summary, \texttt{LockFreeSkipList} uses atomic operations (\texttt{compareAndSet()}) to manage \texttt{Node} references without locks, which enhances performance in multithreaded environments.
+When adding a \texttt{Node}, the process starts at the lowest level and moves upward to ensure immediate visibility.
+Removing a \texttt{Node} involves marking nodes from the top down before unlinking them.
+Furthermore, it relaxes strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency.
+
+However, conventional skiplists does not work out of the box for range locking. Firstly, each Node of the skiplist stores key and value, not range. Secondly, the comparison condition needs to be modified because we now must compare both range start and range end while inserting or deleting instead of just using the key. We present this in two critical changes in the \ref{subsec: Node} and \ref{subsec:find} sections, respectively.
+
+\subsection{Node}\label{subsec:node}
+
+\texttt{Node} is the base of our \texttt{ConcurrentRangeLock} structure.
+Each \texttt{Node} now contains \textbf{\texttt{start}} and \textbf{\texttt{end}}, which represents range.
+\texttt{Node} uses an array of \textbf{\texttt{AtomicMarkableReference}} (more details in section \ref{subsec:atomicmarkablereference}) to maintain forward links at each level, which allows for efficient traversal and updates. 
+\texttt{Node} provides the following methods:
+
+\begin{itemize}
+    \item \texttt{initialize}: sets up a \texttt{Node} with specific range and level values.
+    \item \textbf{\texttt{initializeHead}}: configures the head \texttt{Node} with forward pointers directed to a provided tail \texttt{Node}, establishing the initial structure.
+    \item \texttt{getTopLevel()}, \texttt{getStart()}, \texttt{getEnd()}: accessor methods to retrieve the Node's properties.
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \lstinputlisting[style=mystyle,caption={Pseudocode for Node structure},label={lst:node}]{code/node.txt}
+\end{figure}
+
+\clearpage
+
+\subsection{AtomicMarkableReference} \label{subsec:atomicmarkablereference}
+
+The \texttt{AtomicMarkableReference} class uses a single atomic variable, \texttt{atomicRefMark}, to store a packed representation of both the reference (specifically, a \texttt{Node}) and a mark. If the mark is \texttt{1}, it indicates that the \texttt{Node} it references is softly deleted. These values are packed and unpacked using bitwise operations, where the least significant bit represents the mark.
+
+Listing \ref{lst:atomicmarkablereference} provides the pseudo code for \texttt{AtomicMarkableReference}.
+
+The \texttt{pack} method combines a \texttt{Node} pointer and a boolean mark into a single \texttt{uintptr\_t} value by encoding the pointer into the lower bits and the mark into the highest bit. Conversely, the \texttt{unpack} method decodes this packed value to retrieve the original \texttt{Node} pointer and boolean mark.
+
+To atomically set a new \texttt{Node} pointer and mark value, the \texttt{store} method uses relaxed memory ordering.
+
+The \texttt{compareAndSet} method performs an atomic update of both the reference and mark if they match the expected values, employing acquire-release memory ordering for proper synchronization.
+
+The \texttt{attemptMark} method focuses on updating the mark alone, provided that the current reference matches the expected one and the mark differs. If the update succeeds, it returns \texttt{true}; otherwise, it returns \texttt{false}.
+
+The \texttt{get} method retrieves the current reference and mark, which stores the mark in a provided boolean pointer. In contrast, the \texttt{getReference} method returns the current reference without accessing the mark.
+
+\begin{figure}[!p]
+    \centering
+    \lstinputlisting[style=mystyle,caption={AtomicMarkableReference},label={lst:atomicmarkablereference}]{code/atomicmarkablereference.txt}
+\end{figure}
