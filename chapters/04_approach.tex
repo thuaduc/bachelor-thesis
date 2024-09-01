@@ -1,14 +1,6 @@
 \chapter{Approach}\label{ch:approach}
-In this section, we will demonstrate how our concurrent range lock operates. 
-In the first section \ref{sec:skip-list}, we will discuss the skip list and its suitability as a data structure for range locking. 
-Then, we will delve into the details of our proposed mechanism in the second section \ref{sec:concurrent-range-lock}.
 
 \section{Concurrent Range Lock}\label{sec:concurrent-range-lock}
-We developed our concurrent range lock based on the \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}.
-In summary, our concurrent range lock uses atomic operation \texttt{compareAndSet} to manage \texttt{Node} references without locks, which enhances performance in multithreaded environments.
-When adding a \texttt{Node}, the process starts at the lowest level and moves upward to ensure immediate visibility.
-Removing a \texttt{Node} involves marking nodes from the top down before unlinking them.
-Furthermore, it relaxes strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency.
 
 \begin{figure}[h]
     \centering
@@ -16,9 +8,6 @@ Furthermore, it relaxes strict structural maintenance of higher levels, focusing
     \caption{ConcurrentRangeLock. Each \texttt{Node} has a unique range.}
     \label{fig:concurrent_range_lock}
 \end{figure}
-
-A crucial modification is required to utilize a skip list for range locking. Instead of storing key-value pairs as in a conventional skip list, each Node will store a range. 
-The search, insert, and delete operations logic will be adapted and redefined as \texttt{tryLock} and \texttt{releaseLock} methods to accommodate this change.
 
 In this section, we will provide a detailed explanation of the algorithm behind the concurrent range lock. For the sake of simplicity, we use \texttt{uint64\_t} for our pseudocode provided in this section. 
 We use the template feature in our open-source C++ implementation to enable generic programming. 
@@ -41,72 +30,78 @@ The two primary methods rely heavily on private searching methods such as \textt
     \lstinputlisting[style=mystyle,caption={Pseudocode for ConcurrentRangeLock API},label={lst:api}]{code/api.txt}
 \end{figure}
 
-\subsection{Find}\label{subsec:find}
 
-Both \texttt{tryLock} and \texttt{releaseLock} methods rely heavily on \texttt{find} methods.
-There are several find methods in our implementation that serve different purposes:
-
-\begin{itemize}
-    \item \texttt{bool findInsert(uint64\_t start, uint64\_t end, Node** preds, Node** succs)}: checks if the target range \texttt{[start, end]} is free to be inserted.
-    
-    \item \texttt{bool findExact(uint64\_t start, uint64\_t end, Node** preds, Node** succs)}: checks if the target range \texttt{[start, end]} is already present in the skip list.
-    
-    \item \texttt{void findDelete(uint64\_t start, uint64\_t end)}: finds the target range \texttt{[start, end]} from the skip list to physically delete the Node which contains the corresponding range.
-\end{itemize}
-
-These \texttt{findInsert} and \texttt{findExact} methods also fill in the \texttt{preds[]} and \texttt{succs[]} arrays with the target node's predecessors and successors at each level.
-Because the goal of \texttt{findDelete} is only to snip out all the deleted Node, there is no need to fill any array.
-
-Nevertheless, these methods have to maintain the following two properties:
-
-\begin{itemize}
-    \item During traversal, they need to skip over marked nodes.
-    They use \texttt{compareAndSet()} to ensure that they remove all softly deleted Node on the way.
-    \item Every \texttt{preds[]} reference is to a node with a key strictly less than the target.
-\end{itemize}
-
-\vspace{15pt}
-
-\begin{figure}[h]
+\begin{figure}
     \centering
-    \lstinputlisting[style=mystyle,caption={General pseudocode for find methods},label={lst:find}]{code/find.txt}
+    
+    \begin{tikzpicture}[->, auto, semithick, node distance=3cm]
+    
+    % Node styles
+    \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{thread3}=[state, draw=darkgreen,line width=0.5mm, minimum width=2cm, minimum height=1cm, align=center]
+    \tikzstyle{crl}=[draw=black, fill=none, minimum width=2cm, minimum height=1cm, align=center]
+    \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{success3}=[state, draw=darkgreen,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    
+    % Nodes
+    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,512]};
+    \node[thread3, below=2cm of worker1] (worker3) {worker\_thread 3 \\ acquiring [768,1024]};
+    \node[crl,  right=2cm of worker1, yshift=-2cm] (crl) {Concurrent Range Lock};
+    \node[success1, above=2cm of crl] (success1) {worker\_thread 1 \\ acquired [0,512]};
+    \node[success3, below=3.5cm of crl] (success3) {worker\_thread 3 \\ acquired [768,1024]};
+    \node[success1, right=9cm of worker1] (free1) {worker\_thread 1 \\ released [0,1024]};
+    \node[success3, right=9cm of worker3] (free3) {worker\_thread 3 \\ released [768,1024]};
+    
+    % Arrows and Labels
+    \path[->] 
+        (worker1) edge[draw=blue,bend left=10] node[left,yshift=-1.3cm] {tryLock(0,512)} (crl)
+        (worker3) edge[draw=green,bend right=10] node[left] {tryLock(768,1024)} (crl)
+        
+        (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
+        (crl) edge[draw=green,bend right=10] node[left] {success} (success3)
+        
+        (success1) edge[draw=darkblue,bend left=10] node[right] {releaseLock(0,512)} (crl)
+        (success3) edge[draw=darkgreen,bend right=10] node[right] {releaseLock(768,1024)} (crl)
+        
+        (crl) edge[draw=darkblue,bend right=20] node[right] {success} (free1)
+        (crl) edge[draw=darkgreen,bend left=30] node[right] {success} (free3);
+    \end{tikzpicture}
+    \caption{Concurrent Range Lock fife cycle}
+    \label{fig:concurrent_range_lock_threads}
 \end{figure}
 
-\subsubsection{Algorithm in details}
-The \texttt{find()} method starts by traversing the LockFreeSkipList from the \texttt{topLevel} of the head sentinel, which has the maximal allowed node level.
-It proceeds down the list level by level, filling in the \texttt{preds} and \texttt{succs} nodes.
-These nodes are repeatedly advanced until \texttt{pred} refers to a node with the \texttt{end} value on that level that is strictly less than the target range \texttt{end} (lines 13--29).
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[->, auto, semithick, node distance=2cm]
+    
+    % Node styles
+    \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{thread2}=[state, draw=darkred, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{crl}=[draw=black, fill=none, minimum width=3cm, minimum height=1.5cm, align=center]
+    \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    
+    % Nodes
+    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,1024]};
+    \node[thread2, below=2cm of worker1] (worker2) {worker\_thread 2 \\ acquiring [0, 512]};
+    \node[crl,  right=3cm of worker2, yshift=2.5cm] (crl) {Concurrent Range Lock};
+    \node[success1, above=2cm of crl] (success1) {worker\_thread 1 \\ acquired [0,1024]};    
+    \node[success1, right=9cm of worker1] (free1) {worker\_thread 1 \\ released [0,1024]};
+    
+    % Arrows and Labels
+    \path[->] 
+        (worker1) edge[draw=blue,bend left=10] node[above,yshift=-1.3cm] {tryLock(0,1024)} (crl)
+        (worker2) edge[draw=red,bend left=10] node[below,yshift=1cm] {tryLock(0,512)} (crl)
+        (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
+        (success1) edge[draw=darkblue,bend left=10] node[right] {releaseLock(0,1024)} (crl)
+        (crl) edge[draw=red,bend left=10] node[left, yshift=-0.5cm] {fail} (worker2)
+        (crl) edge[draw=darkblue,bend right=20] node[right] {success} (free1);
+    \end{tikzpicture}
+    \caption{Concurrent Range Lock case conflict}
+    \label{fig:concurrent_range_lock_threads}
+\end{figure}
 
-While traversing, it repeatedly snips out marked nodes from the current level as they are encountered (lines 15--22) using a \texttt{compareAndSet()}.
-\texttt{compareAndSet()} function also validates that the next field of the predecessor still references the current Node.
 
-Once an unmarked \texttt{curr} node is found (line 23), it is tested to see if its \texttt{start} is greater than or equal to the target \texttt{start}.
-If so, \texttt{pred} is advanced to \texttt{curr}, \texttt{curr} is advanced to \texttt{succ}, and the traverse continues.
-Otherwise, the current range of \texttt{pred} is the immediate predecessor of the target node.
-The \texttt{find()} method then breaks out of the current level search loop, saving the current values of \texttt{pred} and \texttt{curr} (lines 26--32).
-
-The \texttt{find()} method continues this process until it reaches the bottom level.
-An important point is that each level's traversal maintains the previously described properties.
-Specifically, if a node with the target key is in the list, it will be found at the bottom level even if nodes are removed at higher levels.
-When traversal stops, \texttt{pred} refers to a predecessor of the target node.
-The method descends to each next lower level without skipping over the target node.
-If the Node is in the list, it will be found at the bottom level.
-Additionally, if the Node is found, it cannot be marked because if it were marked, it would have been snipped out in lines 15--22.
-Thus, the condition test on line 35 only needs to check if there are overlap ranges (\texttt{findInsert}) or if the start and end of the Node match the target start and end (\texttt{findExact}).
-\begin{enumerate}
-    \item \texttt{findInsert}:
-    \begin{lstlisting}[style=nonum, label={}]
- return (!(start > pred->getEnd() && end < curr->getStart()));
-    \end{lstlisting}
-    \item \texttt{findExact}:
-    \begin{lstlisting}[style=nonum, label={}]
- return (start == curr->getStart() && end == curr->getEnd());
-    \end{lstlisting}
-\end{enumerate}
-
-The linearization points for both successful and unsuccessful calls to the \texttt{find()} method occur when the \texttt{curr} reference at the bottom-level list is set, either at line 11 or line 20, for the last time before the success or failure of the \texttt{find()} call is determined at line 35.
-
-\clearpage
+\section{Algorithm in detail}
 
 \subsection{Try Lock}\label{subsec:tryLock}
 
@@ -172,3 +167,68 @@ Notice that this linearization point must occur during the \texttt{releaseLock} 
 
 Finally, if the \texttt{compareAndSet()} fails and the Node is unmarked, the next Node must have changed concurrently. 
 Since the victim is known, there is no need to call find() again, and \texttt{releaseLock} simply uses the new value read from next to retry the marking.
+
+\subsection{Find}\label{subsec:find}
+
+Both \texttt{tryLock} and \texttt{releaseLock} methods rely heavily on \texttt{find} methods.
+There are several find methods in our implementation that serve different purposes:
+
+\begin{itemize}
+    \item \texttt{bool findInsert(uint64\_t start, uint64\_t end, Node** preds, Node** succs)}: checks if the target range \texttt{[start, end]} is free to be inserted.
+    
+    \item \texttt{bool findExact(uint64\_t start, uint64\_t end, Node** preds, Node** succs)}: checks if the target range \texttt{[start, end]} is already present in the skip list.
+    
+    \item \texttt{void findDelete(uint64\_t start, uint64\_t end)}: finds the target range \texttt{[start, end]} from the skip list to physically delete the Node which contains the corresponding range.
+\end{itemize}
+
+These \texttt{findInsert} and \texttt{findExact} methods also fill in the \texttt{preds[]} and \texttt{succs[]} arrays with the target node's predecessors and successors at each level.
+Because the goal of \texttt{findDelete} is only to snip out all the deleted Node, there is no need to fill any array.
+
+Nevertheless, these methods have to maintain the following two properties:
+
+\begin{itemize}
+    \item During traversal, they need to skip over marked nodes.
+    They use \texttt{compareAndSet()} to ensure that they remove all softly deleted Node on the way.
+    \item Every \texttt{preds[]} reference is to a node with a key strictly less than the target.
+\end{itemize}
+
+\vspace{15pt}
+
+\begin{figure}[h]
+    \centering
+    \lstinputlisting[style=mystyle,caption={General pseudocode for find methods},label={lst:find}]{code/find.txt}
+\end{figure}
+
+\subsubsection{Algorithm in details}
+The \texttt{find()} method starts by traversing the LockFreeSkipList from the \texttt{topLevel} of the head sentinel, which has the maximal allowed node level.
+It proceeds down the list level by level, filling in the \texttt{preds} and \texttt{succs} nodes.
+These nodes are repeatedly advanced until \texttt{pred} refers to a node with the \texttt{end} value on that level that is strictly less than the target range \texttt{end} (lines 13--29).
+
+While traversing, it repeatedly snips out marked nodes from the current level as they are encountered (lines 15--22) using a \texttt{compareAndSet()}.
+\texttt{compareAndSet()} function also validates that the next field of the predecessor still references the current Node.
+
+Once an unmarked \texttt{curr} node is found (line 23), it is tested to see if its \texttt{start} is greater than or equal to the target \texttt{start}.
+If so, \texttt{pred} is advanced to \texttt{curr}, \texttt{curr} is advanced to \texttt{succ}, and the traverse continues.
+Otherwise, the current range of \texttt{pred} is the immediate predecessor of the target node.
+The \texttt{find()} method then breaks out of the current level search loop, saving the current values of \texttt{pred} and \texttt{curr} (lines 26--32).
+
+The \texttt{find()} method continues this process until it reaches the bottom level.
+An important point is that each level's traversal maintains the previously described properties.
+Specifically, if a node with the target key is in the list, it will be found at the bottom level even if nodes are removed at higher levels.
+When traversal stops, \texttt{pred} refers to a predecessor of the target node.
+The method descends to each next lower level without skipping over the target node.
+If the Node is in the list, it will be found at the bottom level.
+Additionally, if the Node is found, it cannot be marked because if it were marked, it would have been snipped out in lines 15--22.
+Thus, the condition test on line 35 only needs to check if there are overlap ranges (\texttt{findInsert}) or if the start and end of the Node match the target start and end (\texttt{findExact}).
+\begin{enumerate}
+    \item \texttt{findInsert}:
+    \begin{lstlisting}[style=nonum, label={}]
+ return (!(start > pred->getEnd() && end < curr->getStart()));
+    \end{lstlisting}
+    \item \texttt{findExact}:
+    \begin{lstlisting}[style=nonum, label={}]
+ return (start == curr->getStart() && end == curr->getEnd());
+    \end{lstlisting}
+\end{enumerate}
+
+The linearization points for both successful and unsuccessful calls to the \texttt{find()} method occur when the \texttt{curr} reference at the bottom-level list is set, either at line 11 or line 20, for the last time before the success or failure of the \texttt{find()} call is determined at line 35.
