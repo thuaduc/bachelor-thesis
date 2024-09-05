@@ -42,7 +42,7 @@ When a thread wants to acquire a range, it iterates through the skip list. If it
 
 \subsection{Bitmap Range Lock}
 
-In addition to the tree-based range locking method discussed in \ref{subsec:treebased}, Kim et al. proposed a lock-free range locking mechanism, which they claim offers enhanced efficiency compared to interval tree-based locks. 
+In addition to the tree-based range locking method discussed in Subsection \ref{subsec:treebased}, Kim et al. proposed a lock-free range locking mechanism, which they claim offers enhanced efficiency compared to interval tree-based locks. 
 This approach involves dividing a file into segments, each managed by a 32-bit variable that functions as a reader-writer lock. The most significant bit represents the writer lock status (1 for locked, 0 for unlocked), while the remaining 31 bits count the number of active readers. 
 The mechanism utilizes hardware-supported atomic operations to ensure that writer locks can only be set when no other locks are active and that reader locks are granted as long as no writer lock is present. 
 Unlocking is achieved by clearing the writer lock bit and decrementing the reader counter. 

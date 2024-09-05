@@ -49,7 +49,7 @@ The skip list height in our range-locking mechanism plays a critical role in bal
 A skip list with insufficient height may need to optimize lookup times effectively, leading to slower performance. 
 In contrast, an excessive height increases memory consumption and management overhead without proportionate gains in efficiency. 
 This test aims to determine the optimal height for our concurrent range-locking mechanism before comparing it to alternative approaches. 
-We conducted experiments using the two workloads described in \ref{subsec:workload} to identify the best skip list height.
+We conducted experiments using the two workloads described in Subsection \ref{subsec:workload} to identify the best skip list height.
 
 \begin{figure}[h]
     \centering
@@ -99,7 +99,7 @@ This height balances the need for efficient lookups with manageable memory overh
 
 \subsection{Result}
 
-Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} variant has good scalability and outperforms the other two. We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. However, in more realistic scenarios, such as those discussed in \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
+Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} variant has good scalability and outperforms the other two. We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. However, in more realistic scenarios, such as those discussed in Section \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
 
 Figure \ref{fig:workload2} illustrates the same result for \textbf{W2}, \texttt{Our} variant continued to outperform the others, achieving two to nine times more operations than \texttt{Scalable RL} and two to six times more than \texttt{Song RL}. 
 In this workload, the number of ranges locked simultaneously increases to the number of threads multiplied by the batch size (16). 
@@ -198,7 +198,7 @@ This prevents race conditions and ensures data consistency while simultaneously 
 
 \subsection{Variants}
 
-We integrated all three versions as described in section \ref{sec:microbenchmark}. 
+We integrated all three versions as described in Section \ref{sec:microbenchmark}. 
 Additionally, we included the original, specifically optimized range lock version by the author as a fourth variant. 
 This range lock employs a bitmap and \texttt{compare-and-swap}, making it lightweight and efficient, especially for managing small to moderate numbers of logical blocks in memory.
 
@@ -256,7 +256,7 @@ Our implementation (\texttt{Our}) demonstrated competitive performance, closely 
 Both \texttt{Bitmap} and \texttt{Our} showed effective scalability with an increasing number of worker threads, though \texttt{Bitmap} maintained a consistent, albeit slight, performance advantage.
 
 Conversely, \texttt{Song RL} initially exhibited substantial throughput but encountered a sharp decline beyond 24 worker threads. 
-This decline underscores the limitations of its coarse-grained range lock mechanism, as discussed in \ref{subsec:listbase}. 
+This decline underscores the limitations of its coarse-grained range lock mechanism, as discussed in Subsection \ref{subsec:listbase}. 
 The single spinlock in \texttt{Song RL} becomes a significant bottleneck in high-contention scenarios, leading to marked performance degradation. 
 On the other hand, the \texttt{Scalable RL} variant showed steady, linear throughput growth. 
 However, its overall performance remained considerably lower than the other variants, highlighting its limitations.

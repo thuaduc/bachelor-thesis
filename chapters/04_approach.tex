@@ -1,6 +1,8 @@
 \chapter{Approach}\label{ch:approach}
 
-\section{Concurrent Range Lock}\label{sec:concurrent-range-lock}
+In this chapter, we will provide a detailed explanation of the API and algorithm behind the concurrent range lock.
+
+\section{Concurrent Range Lock API}\label{sec:api}
 
 \begin{figure}[h]
     \centering
@@ -9,26 +11,31 @@
     \label{fig:concurrent_range_lock}
 \end{figure}
 
-In this section, we will provide a detailed explanation of the algorithm behind the concurrent range lock. For the sake of simplicity, we use \texttt{uint64\_t} for our pseudocode provided in this section. 
-We use the template feature in our open-source C++ implementation to enable generic programming. 
-For further detail, please refer to our \href{https://github.com/thuaduc/concurrent-range-locking}{open-source code}.
-
-\newpage
-
-\subsection{Concurrent Range Lock API}\label{subsec:api}
-
 The ConcurrentRangeLock class consists of two main functions: \texttt{tryLock} and \texttt{releaseLock}.
 
 The \texttt{tryLock} method attempts to acquire a lock for the specified range \texttt{[start, end]}, returning \texttt{true} on success and \texttt{false} otherwise.
 The \texttt{releaseLock} method releases the lock for the range \texttt{[start, end]}, with \texttt{true} indicating success and \texttt{false} if the range was not found or an error occurred.
-We will discuss these methods in subsection \ref{subsec:tryLock} and \ref{subsec:releaseLock}.
+We will discuss these methods in Subsection \ref{subsec:tryLock} and \ref{subsec:releaseLock}.
 
-The two primary methods rely heavily on private searching methods such as \texttt{findInsert}, \texttt{findExact}, and \texttt{findDelete}, which handle insertion finding, exact range finding, and physical deletion of ranges, respectively. We will discuss these methods in section \ref{subsec:find}.
+The two primary methods rely heavily on private searching methods such as \texttt{findInsert}, \texttt{findExact}, and \texttt{findDelete}, which handle insertion finding, exact range finding, and physical deletion of ranges, respectively. We will discuss these methods in Section \ref{subsec:find}.
 
 \begin{figure}[h]
     \centering
     \lstinputlisting[style=mystyle,caption={Pseudocode for ConcurrentRangeLock API},label={lst:api}]{code/api.txt}
 \end{figure}
+
+\section{Life cycle}
+
+Multiple threads could use ConcurrentRangeLock concurrently. 
+In the Figure \ref{fig:crl_normal} and \ref{fig:crl_conflict} we showcase two different senario of two threads trying to lock ranges at the same time. 
+
+Each thread has to call the \texttt{tryLock} method with the parameters range start, range end, thus the positions on the shared object that this thread wants to acquire. 
+If there is no conflict, that is, if there is no overlap existed on the lock, \texttt{tryLock} is successful, like in Figure \ref{fig:crl_normal}. 
+Thread 1 and thread 3 would have full access to the segments of the shared object they acquired.
+But if there is an overlap, for example Figure \ref{fig:crl_conflict}, only one of the threads can succeed in locking its range.
+In this case thread 1. Thread 2 would have to try again, but it won't succeed until thread 1 calls \texttt{releaseLock}.
+
+Both \texttt{tryLock} and \texttt{releaseLock} are boolean methods, but when used correctly, \texttt{releaseLock} should always return true.
 
 
 \begin{figure}
@@ -66,8 +73,8 @@ The two primary methods rely heavily on private searching methods such as \textt
         (crl) edge[draw=darkblue,bend right=20] node[right] {success} (free1)
         (crl) edge[draw=darkgreen,bend left=30] node[right] {success} (free3);
     \end{tikzpicture}
-    \caption{Concurrent Range Lock fife cycle}
-    \label{fig:concurrent_range_lock_threads}
+    \caption{The behavior of range lock case is two threads trying to lock ranges without overlapping simultaneously. Both threads succeed in locking their range.}
+    \label{fig:crl_normal}
 \end{figure}
 
 \begin{figure}
@@ -96,50 +103,59 @@ The two primary methods rely heavily on private searching methods such as \textt
         (crl) edge[draw=red,bend left=10] node[left, yshift=-0.5cm] {fail} (worker2)
         (crl) edge[draw=darkblue,bend right=20] node[right] {success} (free1);
     \end{tikzpicture}
-    \caption{Concurrent Range Lock case conflict}
-    \label{fig:concurrent_range_lock_threads}
+    \caption{The behavior of range lock case: two threads trying to lock ranges with overlap simultaneously. Only one thread can succeed.}
+    \label{fig:crl_conflict}
 \end{figure}
 
+\newpage
 
-\section{Algorithm in detail}
+\section{Algorithm in details}
+
+For the sake of simplicity, we use \texttt{uint64\_t} for our pseudocode provided in this section. 
+We use the template feature in our open-source C++ implementation to enable generic programming. 
+For further detail, please refer to our \href{https://github.com/thuaduc/concurrent-range-locking}{open-source code}.
 
 \subsection{Try Lock}\label{subsec:tryLock}
 
-The \texttt{tryLock} method, shown in Listing \ref{lst:tryLock}, utilizes \texttt{findInsert()} to check if a node with the range \texttt{[start, end]} already exists. If found, \texttt{tryLock} returns \texttt{false}. Otherwise, it creates a new node and attempts to insert it into the list. The Node is inserted starting from the bottom level, with \texttt{compareAndSet()} ensuring the integrity of the insertion. If any insertion fails due to concurrent changes, \texttt{findInsert()} is called again to update the predecessors and successors, and the process repeats until successful.
+The \texttt{tryLock} method, shown in Listing \ref{lst:tryLock}, utilizes \texttt{findInsert()} to check if a node with the range \texttt{[start, end]} already exists. If found, \texttt{tryLock} returns \texttt{false}. 
+Otherwise, it creates a new node and attempts to insert it into the list. 
+The Node is inserted starting from the bottom level, with \texttt{compareAndSet()} ensuring the integrity of the insertion. 
+If any insertion fails due to concurrent changes, \texttt{findInsert()} is called again to update the predecessors and successors, and the process repeats until successful.
 
 \vspace{15pt}
-
-    
 \begin{figure}[h]
     \centering
     \lstinputlisting[style=mystyle,caption={Pseudocode for tryLock method},label={lst:tryLock}]{code/trylock.txt}
 \end{figure}
 
 \subsubsection*{Algorithm in details}
-The \texttt{tryLock} method, shown in listing \ref{lst:tryLock}, uses \texttt{findInsert()}, show in listing \ref{lst:find}, to determine whether a node with range \texttt{[start, end]} is already in the list (line 7). \texttt{tryLock} also calls \texttt{findInsert()} to initialize the preds[] and succs[] arrays to hold the new Node's ostensible predecessors and successors.
-If an unmarked node with the target key is found in the bottom-level list, \texttt{findInsert()} returns \texttt{accurate} and the \texttt{tryLock} method returns \texttt{false}, indicating that the key is already in the set. The unsuccessful \texttt{tryLock}'s linearization point is the same as the successful \texttt{findInsert()}'s (line 8). If no node is found, the next step is to add a new node with the key into the structure.
+The \texttt{tryLock} method, shown in Listing \ref{lst:tryLock}, uses \texttt{findInsert()} to determine whether a node with range \texttt{[start, end]} is already in the list (line 7). 
+\texttt{tryLock} also calls \texttt{findInsert()} to initialize the preds[] and succs[] arrays to hold the new Node's ostensible predecessors and successors.
+If an unmarked node is found in the bottom-level list, \texttt{findInsert()} returns \texttt{true} and the \texttt{tryLock} method returns \texttt{false}, indicating that part of the target range is already acquired by other thread.
+See Figure \ref{fig:concurrent_range_lock_threads} as an example.
+The unsuccessful \texttt{tryLock}'s linearization point is the same as the successful \texttt{findInsert()}'s (line 8). 
+If no node is found, the next step is to add a new node with the key into the structure.
 
-A new node is created with a randomly chosen top-level (lines 10--11). The Node's next references are unmarked and set to the successors returned by the \texttt{findInsert()} method (lines 13--15).
-The next step is to try to add the new Node by linking it into the bottom-level list between the \texttt{preds[0]} and \texttt{succs[0]} nodes returned by \texttt{findInsert()}. We use the \texttt{compareAndSet()} method to set the reference while validating that these nodes still refer one to the other and have not been removed from the list (line 17). If the  \texttt{compareAndSet()} fails, something has changed and the call restarts. If the  \texttt{compareAndSet()} succeeds, the item is added, and line 17 is the call's linearization point.
-The {findInsert()} then links the Node in at higher levels (lines 21--25). For each level, it attempts to splice the Node by setting the predecessor, if it refers to the valid successor, to the new Node (lines 22--23). If successful, it breaks and moves on to the next level. If unsuccessful, then the Node referenced by the predecessor must have changed, and \texttt{findInsert()} is called again to find a new valid set of predecessors and successors (line 24). We discard the result of calling \texttt{findInsert()} because we care only about recomputing the ostensible predecessors and successors on the remaining unlinked levels. The method returns true once all levels are linked (line 27).
-The \texttt{releaseLock} method, shown in listing \ref{lst:releaseLock}, calls \texttt{findExact()} to determine whether an unmarked node with a matching range \texttt{[start, end]} is in the bottom-level list (line 7). If no node is found in the bottom-level list, or the Node with a matching range \texttt{[start, end]} is marked, the method returns false. The linearization point of the unsuccessful \texttt{releaseLock} is that of the \texttt{findExact()} method called in line 7. 
-
-If an unmarked node is found, the method logically removes the associated key from the abstract set and prepares it for physical removal. This step uses the set of ostensible predecessors (stored by \texttt{findExact()} in \texttt{preds[]}) and the victim (returned from \texttt{findExact()} in \texttt{succs[]}). First, starting from the top-level, all links up to and \textbf{not including} the bottom-level link are marked (lines 12--20) by repeatedly reading next and its mark and applying \texttt{attemptMark()}. If the link is found to be marked (either because it was already marked or because the attempt succeeded), the method moves on to the next-level link. Otherwise, the current level's link is reread since another concurrent thread must have changed it, so the marking attempt must be repeated. 
-
-Once all levels but the bottom one have been marked, the method marks the bottom level's next reference. If successful, this marking (line 27) is the linearization point of a successful \texttt{releaseLock}. The \texttt{releaseLock} method tries to mark the next field using \texttt{compareAndSet()}. If successful, it can determine that it was the thread that changed the mark from false to true. Before returning true, the \texttt{findDelete()} method is called. This call is an optimization: \texttt{findDelete()} physically removes all links to the Node it is searching for.
-
-On the other hand, if the  \texttt{compareAndSet()} call fails, but the next reference is marked, then another thread must have concurrently removed it, so \texttt{releaseLock} returns false. The linearization point of this unsuccessful \texttt{releaseLock} is the linearization point of the \texttt{releaseLock} method by the thread that successfully marked the next field. Notice that this linearization point must occur during the \texttt{releaseLock} call because the \texttt{findExact()} call found the Node unmarked before it found it marked.
-
-Finally, if the \texttt{compareAndSet()} fails and the Node is unmarked, the next Node must have changed concurrently. Since the victim is known, there is no need to call find() again, and \texttt{releaseLock} simply uses the new value read from next to retry the marking.
-
-\clearpage
+A new node is created with a randomly chosen top-level (lines 10--11). 
+The Node's next references are unmarked and set to the successors returned by the \texttt{findInsert()} method (lines 13--15).
+The next step is to try to add the new Node by linking it into the bottom-level list between the \texttt{preds[0]} and \texttt{succs[0]} nodes returned by \texttt{findInsert()}. 
+We use the \texttt{compareAndSet()} method to set the reference while validating that these nodes still refer one to the other and have not been removed from the list (line 17). 
+If the  \texttt{compareAndSet()} fails, something has changed and the call restarts. 
+If the  \texttt{compareAndSet()} succeeds, the item is added, and line 17 is the call's linearization point.
+The {findInsert()} then links the Node in at higher levels (lines 21--25). 
+For each level, it attempts to splice the Node by setting the predecessor, if it refers to the valid successor, to the new Node (lines 22--23). If successful, it breaks and moves on to the next level. 
+If unsuccessful, then the Node referenced by the predecessor must have changed, and \texttt{findInsert()} is called again to find a new valid set of predecessors and successors (line 24). 
+We discard the result of calling \texttt{findInsert()} because we care only about recomputing the ostensible predecessors and successors on the remaining unlinked levels. 
+The method returns true once all levels are linked (line 27).
 
 \subsection{Release Lock}\label{subsec:releaseLock}
 
-The \texttt{releaseLock} method first calls \texttt{findExact()} to locate an unmarked node with the specified range \texttt{[start, end]}. If found, it marks all node levels except the bottom one, preparing the Node for removal. The method then attempts to mark the bottom-level link using \texttt{compareAndSet()}, which serves as the linearization point for a successful \texttt{releaseLock}. If marking fails due to concurrent modifications, the method retries or returns false, depending on the Node's state.
+The \texttt{releaseLock} method first calls \texttt{findExact()} to locate an unmarked node with the specified range \texttt{[start, end]}. 
+If found, it marks all node levels except the bottom one, preparing the Node for removal. 
+The method then attempts to mark the bottom-level link using \texttt{compareAndSet()}, which serves as the linearization point for a successful \texttt{releaseLock}. 
+If marking fails due to concurrent modifications, the method retries or returns false, depending on the Node's state.
 
 \vspace{15pt}
-
 \begin{figure}[h]
     \centering
     \lstinputlisting[style=mystyle,caption={Pseudocode for releaseLock method},label={lst:releaseLock}]{code/releaselock.txt}
@@ -147,7 +163,7 @@ The \texttt{releaseLock} method first calls \texttt{findExact()} to locate an un
 
 \subsubsection*{Algorithm in details}
 
-The \texttt{releaseLock} method, shown in listing \ref{lst:releaseLock}, calls \texttt{findExact()} to determine whether an unmarked node with a matching range \texttt{[start, end]} is in the bottom-level list (line 7). 
+The \texttt{releaseLock} method, shown in Listing \ref{lst:releaseLock}, calls \texttt{findExact()} to determine whether an unmarked node with a matching range \texttt{[start, end]} is in the bottom-level list (line 7). 
 If no node is found in the bottom-level list, or the Node with a matching range \texttt{[start, end]} is marked, the method returns false. 
 The linearization point of the unsuccessful \texttt{releaseLock} is that of the \texttt{findExact()} method called in line 7. 
 
@@ -158,8 +174,11 @@ If the link is found to be marked (either because it was already marked or becau
 Otherwise, the current level's link is reread since another concurrent thread must have changed it, so the marking attempt must be repeated. 
 
 Once all levels but the bottom one have been marked, the method marks the bottom level's next reference. 
-If successful, this marking (line 27) is the linearization point of a successful \texttt{releaseLock}. The \texttt{releaseLock} method tries to mark the next field using \texttt{compareAndSet()}. 
-If successful, it can determine that it was the thread that changed the mark from false to true. Before returning true, the \texttt{findDelete()} method is called. This call is an optimization: \texttt{findDelete()} physically removes all links to the Node it is searching for.
+If successful, this marking (line 27) is the linearization point of a successful \texttt{releaseLock}. 
+The \texttt{releaseLock} method tries to mark the next field using \texttt{compareAndSet()}. 
+If successful, it can determine that it was the thread that changed the mark from false to true. 
+Before returning true, the \texttt{findDelete()} method is called. 
+This call is an optimization: \texttt{findDelete()} physically removes all links to the Node it is searching for.
 
 On the other hand, if the  \texttt{compareAndSet()} call fails, but the next reference is marked, then another thread must have concurrently removed it, so \texttt{releaseLock} returns false. 
 The linearization point of this unsuccessful \texttt{releaseLock} is the linearization point of the \texttt{releaseLock} method by the thread that successfully marked the next field. 
