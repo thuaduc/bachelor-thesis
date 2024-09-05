@@ -4,7 +4,7 @@
 
 \subsection{Tree-Based Range Lock}\label{subsec:treebased}
 
-Several works have explored coarse-grained range-locking mechanisms. Jan Kara introduced a range-locking mechanism for the Linux kernel~\parencite{linuxRangeLockImpl2013}, which utilizes a range tree (specifically a red-black tree) to manage range locks and employs a spinlock for synchronization. Each lock is represented as a node in the tree. Similarly, Kim et al. adopted a comparable range-locking mechanism in their work on pNOVA~\parencite{kim2019pnova}, a variant of the NOVA file system that uses range-based reader-writer locks to enable parallel I/O within a single shared file.
+Several works have explored coarse-grained range-locking methods. Jan Kara introduced a range-locking mechanism for the Linux kernel~\parencite{linuxRangeLockImpl2013}, which utilizes a range tree (specifically a red-black tree) to manage range locks and employs a spinlock for synchronization. Each lock is represented as a node in the tree. Similarly, Kim et al. adopted a comparable range lock in their work on pNOVA~\parencite{kim2019pnova}, a variant of the NOVA file system that uses range-based reader-writer locks to enable parallel I/O within a single shared file.
 
 When a thread requests a range lock, it first acquires a spinlock, then traverses the tree to determine the number of locks intersecting with the requested range. Afterward, the thread inserts a node describing its range into the tree and releases the spinlock. If no intersecting locks are found, the thread can proceed with accessing the critical section. If intersecting locks are detected, the thread waits until those locks are released and the number of intersecting locks drops to zero. Upon completing its operation, the thread re-acquires the spinlock, removes its node from the tree, updates the count of overlapping locks, and releases the spinlock. This method ensures that each range is locked only after all previous conflicting range locks have been released, thereby achieving fairness and avoiding livelocks.
 
@@ -30,7 +30,7 @@ Similar to the tree-based range lock, contention remains an issue with this appr
 
 \subsection{List-Based Range Lock}
 
-Kogan et al.~\parencite{kogan2020scalable} introduced a range lock based on a concurrent linked list, where each node represents an acquired range. This design aims to provide a lock-free mechanism, addressing critical shortcomings of previous range-locking implementations. In a lock-free system, processes can proceed without being blocked by locks held by other processes, thereby improving performance and scalability.
+Kogan et al.~\parencite{kogan2020scalable} introduced a range lock based on a concurrent linked list, where each node represents an acquired range. This design aims to provide a lock-free method, addressing critical shortcomings of previous range-locking implementations. In a lock-free system, processes can proceed without being blocked by locks held by other processes, thereby improving performance and scalability.
 
 The proposed method involves inserting acquired ranges into a linked list sorted by their starting points, ensuring that only one range from a group of overlapping ranges can be inserted using an atomic \texttt{compare-and-swap} (CAS) operation. A significant difference in this method compared to previous ones is that each node has two statuses: \texttt{marked} (logically deleted) or \texttt{unmarked} (present).
 
@@ -38,13 +38,13 @@ When a thread wants to acquire a range, it iterates through the skip list. If it
 
 \subsubsection*{Drawbacks}
 
-\textbf{Linked List Inefficiency:} While this design implements a lock-free mechanism that effectively addresses the limitations of existing range locks, it comes with its own set of trade-offs. In general, insertion and lookup operations in a linked list are less efficient than in tree-like structures. The average time complexity for searching in a linked list is \( O(n) \), whereas it is only \( O(\log n) \) for skip lists or tree-like structures~\parencite{fomitchev2004lock}. Our evaluation will demonstrate that this inefficiency becomes particularly pronounced when handling multiple overlapping ranges within the list.
+\textbf{Linked List Inefficiency:} While this design implements a lock-free method that effectively addresses the limitations of existing range locks, it comes with its own set of trade-offs. In general, insertion and lookup operations in a linked list are less efficient than in tree-like structures. The average time complexity for searching in a linked list is \( O(n) \), whereas it is only \( O(\log n) \) for skip lists or tree-like structures~\parencite{fomitchev2004lock}. Our evaluation will demonstrate that this inefficiency becomes particularly pronounced when handling multiple overlapping ranges within the list.
 
 \subsection{Bitmap Range Lock}
 
-In addition to the tree-based range locking method discussed in Subsection \ref{subsec:treebased}, Kim et al. proposed a lock-free range locking mechanism, which they claim offers enhanced efficiency compared to interval tree-based locks. 
+In addition to the tree-based range locking method discussed in Subsection \ref{subsec:treebased}, Kim et al. proposed a lock-free range lock, which they claim offers enhanced efficiency compared to interval tree-based locks. 
 This approach involves dividing a file into segments, each managed by a 32-bit variable that functions as a reader-writer lock. The most significant bit represents the writer lock status (1 for locked, 0 for unlocked), while the remaining 31 bits count the number of active readers. 
-The mechanism utilizes hardware-supported atomic operations to ensure that writer locks can only be set when no other locks are active and that reader locks are granted as long as no writer lock is present. 
+The method utilizes hardware-supported atomic operations to ensure that writer locks can only be set when no other locks are active and that reader locks are granted as long as no writer lock is present. 
 Unlocking is achieved by clearing the writer lock bit and decrementing the reader counter. 
 
 Although this method provides finer-grained locking with reduced overhead compared to interval tree-based locks, it is tailored to handle both reader and writer modes and depends on specific memory size constraints. 
