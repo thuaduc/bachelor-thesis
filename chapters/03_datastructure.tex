@@ -2,23 +2,17 @@
 
 \section{Skiplist is suitable for range lock}
 The effectiveness of a range lock is strongly influenced by the underlying data structure used to manage these ranges. 
-Existing range locks have used many different comparison-based data structures, such as interval tree~\parencite{linuxRangeLockImpl2013, kim2019pnova}, linked list~\parencite{song2013parallelizing}, skip list~\parencite{kogan2020scalable} and bitmap~\parencite{kim2019pnova, nguyen2024files}, each of which has advantages and disadvantages. 
+Existing range locks have used many different comparison-based data structures, such as interval tree~\parencite{linuxRangeLockImpl2013, kim2019pnova} and linked list~\parencite{song2013parallelizing}, skip list~\parencite{kogan2020scalable} each of which has advantages and disadvantages. 
 
 Interval trees are considered heavyweight compared to linked lists and skip lists because they require complex balancing mechanisms to maintain efficient search times, which adds significant computational and memory overhead. 
 Interval trees also require the maintenance of additional data, such as subtree intervals, making them more resource-intensive. This makes interval trees unsuitable for range locking. 
 
 Linked lists have minimal structure and are easy to implement and maintain. However, it is very expensive in terms of Insert/Delete time. The complexity O(n) for the average case of search becomes a significant disadvantage when the number of ranges increases, 
 
-Bitmaps are another alternative, especially in scenarios where the size of the shared resource is known in advance. However, bitmaps are expensive for writing areas into the map. 
-For example, in range locking based on the bitmap version from the work of Nguyen et al.~\parencite{nguyen2024files}, they write range directly on the map and reverse in case they reach a set bit. 
-This results in an average case for lock operation of O(n), where n is the size of the range, making it inefficient for range locking. 
-In addition, bitmap range locks need to know the size of the shared object in advance. They need one bit for each block. 
-So, even if we only have one or two areas in the lock, we would still need the total size of the bitmap, which is unnecessary.  
-
 Skiplists strike a balance between the heaviness of interval trees and the simplicity of linked lists. Despite their theoretically poor worst-case performance, skip lists rarely exhibit worst-case behavior, making them efficient in most scenarios.
 For example, in a dictionary with more than 250 entries, the probability that a search will take more than three times the expected time is less than one in a million~\parencite{pugh1990skip2}. 
-Skip lists are, therefore, ideal for implementing range lock.
 
+We strongly believe that the skip list is ideal for implementing range locking.
 
 \begin{table}[h!]
     \centering
@@ -28,9 +22,8 @@ Skip lists are, therefore, ideal for implementing range lock.
         \textbf{Linked List} & $O(1)$ & $O(n)$ & $O(n)$ \\ \hline
         \textbf{Skip List} & $O(1)$ & $O(logn)$ & $O(n)$ \\ \hline
         \textbf{Interval Tree} & $O(\log n)$ & $O(\log n)$ & $O(\log n)$ \\ \hline
-        \textbf{Bitmap} & $O(1)$ & $O(n)$ & $O(n)$ \\ \hline
     \end{tabular}
-    \caption{Time complexities of Insert/Delete operations in \\ Linked List, Skip List, Interval Tree, and Bitmap}
+    \caption{Time complexities of Insert/Delete operations in Linked List, Skip List and Interval Tree}
     \label{tab:insertdeletecomplexity}
 \end{table}
 
@@ -49,7 +42,7 @@ When adding a \texttt{Node}, the process starts at the lowest level and moves up
 Removing a \texttt{Node} involves marking nodes from the top down before unlinking them.
 Furthermore, it relaxes strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency.
 
-However, conventional skiplists does not work out of the box for range locking. Firstly, each Node of the skiplist stores key and value, not range. Secondly, the comparison condition needs to be modified because we now must compare both range start and range end while inserting or deleting instead of just using the key. We present this in two critical changes in the Sections \ref{subsec: Node} and \ref{subsec:find}, respectively.
+However, conventional skiplists does not work out of the box for range locking. Firstly, each Node of the skiplist stores key and value, not range. Secondly, the comparison condition needs to be modified because we now must compare both range start and range end while inserting or deleting instead of just using the key. We present this in two critical changes in the Sections \ref{subsec:node} and \ref{subsec:find}, respectively.
 
 \subsection{Node}\label{subsec:node}
 

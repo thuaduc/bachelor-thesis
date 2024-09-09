@@ -26,94 +26,88 @@ The two primary methods rely heavily on private searching methods such as \textt
 
 \section{Life cycle}
 
-Multiple threads could use ConcurrentRangeLock concurrently. 
-In the Figure \ref{fig:crl_normal} and \ref{fig:crl_conflict} we showcase two different senario of two threads trying to lock ranges at the same time. 
-
 Each thread has to call the \texttt{tryLock} method with the parameters range start, range end, thus the positions on the shared object that this thread wants to acquire. 
-If there is no conflict, that is, if there is no overlap existed on the lock, \texttt{tryLock} is successful, like in Figure \ref{fig:crl_normal}. 
-Thread 1 and thread 3 would have full access to the segments of the shared object they acquired.
-But if there is an overlap, for example Figure \ref{fig:crl_conflict}, only one of the threads can succeed in locking its range.
-In this case thread 1. Thread 2 would have to try again, but it won't succeed until thread 1 calls \texttt{releaseLock}.
+If there is no conflict, that is, if there is no overlap existing on the lock, \texttt{tryLock} is successful. Thread now has exclusive access to this segment of the shared object and can freely read and write this segment. After finish using this segment, thread can call \texttt{releaseLock} to return his access to this segment. If used correctly, \texttt{releaseLock} should always return true.
 
-Both \texttt{tryLock} and \texttt{releaseLock} are boolean methods, but when used correctly, \texttt{releaseLock} should always return true.
-
-
-\begin{figure}
+\begin{figure}[H]
     \centering
     
-    \begin{tikzpicture}[->, auto, semithick, node distance=3cm]
-    
-    % Node styles
-    \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
-    \tikzstyle{thread3}=[state, draw=darkgreen,line width=0.5mm, minimum width=2cm, minimum height=1cm, align=center]
-    \tikzstyle{crl}=[draw=black, fill=none, minimum width=2cm, minimum height=1cm, align=center]
-    \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
-    \tikzstyle{success3}=[state, draw=darkgreen,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
-    
-    % Nodes
-    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,512]};
-    \node[thread3, below=2cm of worker1] (worker3) {worker\_thread 3 \\ acquiring [768,1024]};
-    \node[crl,  right=2cm of worker1, yshift=-2cm] (crl) {Concurrent Range Lock};
-    \node[success1, above=2cm of crl] (success1) {worker\_thread 1 \\ acquired [0,512]};
-    \node[success3, below=3.5cm of crl] (success3) {worker\_thread 3 \\ acquired [768,1024]};
-    \node[success1, right=9cm of worker1] (free1) {worker\_thread 1 \\ released [0,1024]};
-    \node[success3, right=9cm of worker3] (free3) {worker\_thread 3 \\ released [768,1024]};
-    
-    % Arrows and Labels
-    \path[->] 
-        (worker1) edge[draw=blue,bend left=10] node[left,yshift=-1.3cm] {tryLock(0,512)} (crl)
-        (worker3) edge[draw=green,bend right=10] node[left] {tryLock(768,1024)} (crl)
-        
-        (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
-        (crl) edge[draw=green,bend right=10] node[left] {success} (success3)
-        
-        (success1) edge[draw=darkblue,bend left=10] node[right] {releaseLock(0,512)} (crl)
-        (success3) edge[draw=darkgreen,bend right=10] node[right] {releaseLock(768,1024)} (crl)
-        
-        (crl) edge[draw=darkblue,bend right=20] node[right] {success} (free1)
-        (crl) edge[draw=darkgreen,bend left=30] node[right] {success} (free3);
-    \end{tikzpicture}
-    \caption{The behavior of range lock case is two threads trying to lock ranges without overlapping simultaneously. Both threads succeed in locking their range.}
-    \label{fig:crl_normal}
-\end{figure}
-
-\begin{figure}
-    \centering
     \begin{tikzpicture}[->, auto, semithick, node distance=2cm]
     
     % Node styles
-    \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
-    \tikzstyle{thread2}=[state, draw=darkred, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
-    \tikzstyle{crl}=[draw=black, fill=none, minimum width=3cm, minimum height=1.5cm, align=center]
-    \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, align=center]
+    \tikzstyle{crl}=[draw=black, fill=none, minimum width=2cm, align=center]
+    \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, align=center]
     
     % Nodes
-    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,1024]};
-    \node[thread2, below=2cm of worker1] (worker2) {worker\_thread 2 \\ acquiring [0, 512]};
-    \node[crl,  right=3cm of worker2, yshift=2.5cm] (crl) {Concurrent Range Lock};
-    \node[success1, above=2cm of crl] (success1) {worker\_thread 1 \\ acquired [0,1024]};    
-    \node[success1, right=9cm of worker1] (free1) {worker\_thread 1 \\ released [0,1024]};
+    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,512]};
+    \node[crl,  right=2cm of worker1, yshift=-2cm] (crl) {Concurrent Range Lock};
+    \node[success1, above=2cm of crl] (success1) {worker\_thread 1 \\ acquired [0,512]};
+    \node[success1, right=9cm of worker1] (free1) {worker\_thread 1 \\ released [0,512]};
+
+    % Numbers
+    \node[above=0.2cm of worker1] {(1)};
+    \node[above=0.2cm of success1] {(2)};
+    \node[above=0.2cm of free1] {(3)};
     
     % Arrows and Labels
     \path[->] 
-        (worker1) edge[draw=blue,bend left=10] node[above,yshift=-1.3cm] {tryLock(0,1024)} (crl)
-        (worker2) edge[draw=red,bend left=10] node[below,yshift=1cm] {tryLock(0,512)} (crl)
+        (worker1) edge[draw=blue,bend left=10] node[left,yshift=-0.7cm] {tryLock(0,512)} (crl)
+        
         (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
-        (success1) edge[draw=darkblue,bend left=10] node[right] {releaseLock(0,1024)} (crl)
-        (crl) edge[draw=red,bend left=10] node[left, yshift=-0.5cm] {fail} (worker2)
+        
+        (success1) edge[draw=darkblue,bend left=10] node[right] {releaseLock(0,512)} (crl)
+        
         (crl) edge[draw=darkblue,bend right=20] node[right] {success} (free1);
     \end{tikzpicture}
-    \caption{The behavior of range lock case: two threads trying to lock ranges with overlap simultaneously. Only one thread can succeed.}
-    \label{fig:crl_conflict}
+    \caption{Life cycle of range lock}
+    \label{fig:crl_life_cycle}
 \end{figure}
-
-\newpage
 
 \section{Algorithm in details}
 
 For the sake of simplicity, we use \texttt{uint64\_t} for our pseudocode provided in this section. 
 We use the template feature in our open-source C++ implementation to enable generic programming. 
 For further detail, please refer to our \href{https://github.com/thuaduc/concurrent-range-locking}{open-source code}.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[->, auto, semithick, node distance=2cm]
+    
+    % Node styles
+    \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{thread2}=[state, draw=darkred, line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{thread3}=[state, draw=darkgreen,line width=0.5mm, minimum width=2cm, minimum height=1cm, align=center]
+    \tikzstyle{crl}=[draw=black, fill=none, minimum width=3cm, minimum height=1.5cm, align=center]
+    \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+    \tikzstyle{success3}=[state, draw=darkgreen,line width=0.5mm, minimum width=1cm, minimum height=1cm, align=center]
+
+    
+    % Nodes
+    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,512]};
+    \node[thread2, below=1cm of worker1] (worker2) {worker\_thread 2 \\ acquiring [256, 1024]};
+    \node[thread3, below=6cm of worker1] (worker3) {worker\_thread 3 \\ acquiring [1024,2048]};
+    \node[crl,  right=4cm of worker2] (crl) {Concurrent Range Lock};
+    \node[success1, right=4cm of worker1] (success1) {worker\_thread 1 \\ acquired [0,512]};    
+    \node[success3, right=4cm of worker3] (success3) {worker\_thread 3 \\ acquired [1024, 2048]}; 
+
+    % Numbers
+    \node[left=0.2cm of worker1] {(1)};
+    \node[left=0.2cm of worker2] {(2)};
+    \node[left=0.2cm of worker3] {(3)};
+    
+    % Arrows and Labels
+    \path[->] 
+        (worker1) edge[draw=blue,bend left=10] node[left] {tryLock(0,512)} (crl)
+        (worker2) edge[draw=red,bend left=10] node[above] {tryLock(256, 1024)} (crl)
+        (worker3) edge[draw=darkgreen,bend left=10] node[right] {tryLock(1024, 2048)} (crl)
+        (crl) edge[draw=blue,bend left=10] node[right] {success} (success1)
+        (crl) edge[draw=red,bend left=10] node[below] {fail} (worker2)
+        (crl) edge[draw=darkgreen] node[right] {success} (success3);
+    \end{tikzpicture}
+    \caption{The behavior of range lock case: three threads trying to lock ranges. Second thread failed because of overlap}
+    \label{fig:crl_conflict}
+\end{figure}
 
 \subsection{Try Lock}\label{subsec:tryLock}
 
@@ -132,8 +126,8 @@ If any insertion fails due to concurrent changes, \texttt{findInsert()} is calle
 The \texttt{tryLock} method, shown in Listing \ref{lst:tryLock}, uses \texttt{findInsert()} to determine whether a node with range \texttt{[start, end]} is already in the list (line 7). 
 \texttt{tryLock} also calls \texttt{findInsert()} to initialize the preds[] and succs[] arrays to hold the new Node's ostensible predecessors and successors.
 If an unmarked node is found in the bottom-level list, \texttt{findInsert()} returns \texttt{true} and the \texttt{tryLock} method returns \texttt{false}, indicating that part of the target range is already acquired by other thread.
-See Figure \ref{fig:concurrent_range_lock_threads} as an example.
-The unsuccessful \texttt{tryLock}'s linearization point is the same as the successful \texttt{findInsert()}'s (line 8). 
+See Figure \ref{fig:crl_conflict} as an example.
+The unsuccessful linearization point of \texttt{tryLock} is the same as the successful linearization point of \texttt{findInsert()} (line 8). 
 If no node is found, the next step is to add a new node with the key into the structure.
 
 A new node is created with a randomly chosen top-level (lines 10--11). 

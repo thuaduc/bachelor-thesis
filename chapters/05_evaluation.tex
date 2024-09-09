@@ -3,13 +3,13 @@
 This section will evaluate our proposed concurrent range lock under different scenarios. 
 The goal is to see the scalability and throughput of our mechanism compared to state-of-the-art range locks.
 
-\section{Variants}
+\section{Competitors}
 
 We denote our primary implementation as \texttt{Our}. 
-In addition to \texttt{Our}, we implement two different variants for comparison. 
-The first variant is a scalable range lock proposed by Kogan et al.~\parencite{kogan2020scalable}, denoted as \texttt{Scalable RL}. 
-We specifically implemented the Exclusive Access Variant presented in their paper, as it aligns with the focus of our research. 
-The second variant is a skip list range lock proposed by Song et al.~\parencite{song2013parallelizing}, which we denote as \texttt{Song RL}.
+In addition to \texttt{Our}, we implement two different competitors for comparison. 
+The first competitor is a scalable range lock proposed by Kogan et al.~\parencite{kogan2020scalable}, denoted as \texttt{Scalable RL}. 
+We specifically implemented the Exclusive Access variant presented in their paper, as it aligns with the focus of our research. 
+The second competitor is a skip list range lock proposed by Song et al.~\parencite{song2013parallelizing}, which we denote as \texttt{Song RL}.
 
 \section{Benchmark enviroment}
 
@@ -35,8 +35,8 @@ To explore various levels of contention and potential usage scenarios for range 
     
     \item \textbf{\texttt{W2}:} This workload introduces a more complex and realistic scenario. 
     Here, threads perform batched memory operations, where a series of memory ranges (typically 16) are locked, modified (simulated by \texttt{memset()}) and then unlocked in a single batch. 
-    The goal is to test all variants under heavier threaded conditions. 
-    By locking and unlocking in batches, the number of ranges within the data structure increases, providing insight into how efficiently each variant can search, lock, and unlock ranges as the load increases. 
+    The goal is to test all competitors under heavier threaded conditions. 
+    By locking and unlocking in batches, the number of ranges within the data structure increases, providing insight into how efficiently each competitor can search, lock, and unlock ranges as the load increases. 
     This workload emphasizes the performance of the locking mechanism in handling more substantial, real-world use cases where contention may be higher.
 \end{itemize}
 
@@ -99,14 +99,14 @@ This height balances the need for efficient lookups with manageable memory overh
 
 \subsection{Result}
 
-Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} variant has good scalability and outperforms the other two. We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. However, in more realistic scenarios, such as those discussed in Section \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
+Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} has good scalability and outperforms the other two. We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. However, in more realistic scenarios, such as those discussed in Section \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
 
-Figure \ref{fig:workload2} illustrates the same result for \textbf{W2}, \texttt{Our} variant continued to outperform the others, achieving two to nine times more operations than \texttt{Scalable RL} and two to six times more than \texttt{Song RL}. 
+Figure \ref{fig:workload2} illustrates the same result for \textbf{W2}, \texttt{Our} continued to outperform the others, achieving two to nine times more operations than \texttt{Scalable RL} and two to six times more than \texttt{Song RL}. 
 In this workload, the number of ranges locked simultaneously increases to the number of threads multiplied by the batch size (16). 
 This allowed \texttt{Song RL} to perform significantly better compared to \texttt{Scalable RL}. 
 However, \texttt{Scalable RL} demonstrated better scalability as the number of worker threads increased. Beyond sixteen threads, \texttt{Scalable RL} began to surpass \texttt{Song RL} in performance.
 
-In summary, \texttt{Our} variant consistently outperforms both \texttt{Scalable RL} and \texttt{Song RL} across different workloads. 
+In summary, \texttt{Our} consistently outperforms both \texttt{Scalable RL} and \texttt{Song RL} across different workloads. 
 While \texttt{Song RL} struggles with contention in \textbf{W1}, it performs better in more complex scenarios like \textbf{W2}. 
 However, \texttt{Scalable RL} demonstrates better scalability with increasing thread counts, eventually surpassing \texttt{Song RL} as threads increase.
 
@@ -114,23 +114,23 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
     \centering
     \begin{tikzpicture}
         \begin{axis}[
-            width=\textwidth,
+            width=0.8\textwidth,
             height=0.45\textwidth,
-            ytick={0.5e7, 1e7, 1.5e7},
-            yticklabels={$0.5 \cdot 10^{7}$, $1 \cdot 10^{7}$, $1.5 \cdot 10^{7}$},
-            scaled y ticks=false,
-            symbolic x coords={4,8,12,16,20,24,28,32},
-            xtick=data,
-            grid=minor,
-            ylabel={Total number of locks and unlocks per second},
-            xlabel={Total number of worker threads},
+            xmin=0,
+            ymin=0,
             ymax=18000000,
-            ymin=-1,
+            xtick=data,
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=outside,
+            ytick={0, 0.5e7, 1e7, 1.5e7},
+            yticklabels={$0$, $0.5 \cdot 10^{7}$, $1 \cdot 10^{7}$, $1.5 \cdot 10^{7}$},
+            scaled y ticks=false,
+            symbolic x coords={0,4,8,12,16,20,24,28,32},
+            grid=minor,
+            ylabel={Number of locks and unlocks per second},
+            xlabel={Number of worker threads},
             mark options={solid},
-            nodes near coords,
-            every node near coord/.append style={font=\tiny},
-            enlarge x limits={abs=0.75cm},
-            enlarge y limits=false,
             legend style={at={(0.5,-0.25)}, anchor=north,legend columns=-1},
             ]
             \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v0.csv};
@@ -139,7 +139,7 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
             \legend{Our, Scalable RL, Song RL}
         \end{axis}
     \end{tikzpicture}
-    \caption{Microbenchmark for workload \textbf{W1}}
+    \caption{\textbf{Workload 1}: Lock and unlock operations per second}
     \label{fig:workload1}
 \end{figure}
 
@@ -149,21 +149,21 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
         \begin{axis}[
             width=\textwidth,
             height=0.45\textwidth,
-            symbolic x coords={4,8,12,16,20,24,28,32},
-            xtick=data,
-            grid=minor,
-            ytick={0.2e6, 0.4e6, 0.6e6, 0.8e6, 1e6, 1.2e6},
-            yticklabels={$0.2 \cdot 10^{6}$, $0.4 \cdot 10^{6}$, $0.6 \cdot 10^{6}$, $0.8 \cdot 10^{6}$, $1.0 \cdot 10^{6}$, $1.2 \cdot 10^{6}$},
-            scaled y ticks=false,
-            ylabel={Total number of locks and unlock per second},
-            xlabel={Total number of worker threads},
+            xmin=0,
+            ymin=0,
             ymax=1300000,
-            ymin=-1,
+            xtick=data,
+            xticklabels={$0$,$4$,$8$,$12$,$16$,$20$,$24$,$28$,$32$},
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=outside,
+            grid=minor,
+            ytick={0, 0.2e6, 0.4e6, 0.6e6, 0.8e6, 1e6, 1.2e6},
+            yticklabels={$0$,$0.2 \cdot 10^{6}$, $0.4 \cdot 10^{6}$, $0.6 \cdot 10^{6}$, $0.8 \cdot 10^{6}$, $1.0 \cdot 10^{6}$, $1.2 \cdot 10^{6}$},
+            scaled y ticks=false,
+            ylabel={Number of locks and unlock per second},
+            xlabel={Number of worker threads},
             mark options={solid},
-            nodes near coords,
-            every node near coord/.append style={font=\tiny},
-            enlarge x limits={abs=0.75cm},
-            enlarge y limits=false,
             legend style={at={(0.5,-0.25)}, anchor=north,legend columns=-1},
             ]
             \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v0.csv};
@@ -172,13 +172,13 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
             \legend{Our, Scalable RL, Song RL}
         \end{axis}
     \end{tikzpicture}
-    \caption{Microbenchmark for workload \textbf{W2}}
+    \caption{\textbf{Workload 2}: Lock and unlock operations per second}
     \label{fig:workload2}
 \end{figure}
 
 \newpage
 
-\section{Leanstore integration}\label{sec:leanstore}
+\section{Evaluation with real use-cases}\label{sec:leanstore}
 
 While microbenchmarks are useful for evaluating and comparing range locks at algorithm level, they often do not capture the complexities of real-world workloads. 
 Testing in real system allows us to move beyond synthetic benchmarks and evaluate the effectiveness of range locks in a live, operational environment where factors like transaction throughput, latency, and contention can significantly impact performance. 
@@ -196,11 +196,16 @@ A range lock mechanism prevents concurrent workers from accessing overlapping me
 The range lock operates by locking specific ranges within the shared aliasing area, ensuring that only one worker can modify or access a particular memory range. 
 This prevents race conditions and ensures data consistency while simultaneously allowing multiple workers to operate on different memory ranges. 
 
-\subsection{Variants}
+\subsection{Competitors}
 
-We integrated all three versions as described in Section \ref{sec:microbenchmark}. 
-Additionally, we included the original, specifically optimized range lock version by the author as a fourth variant. 
-This range lock employs a bitmap and \texttt{compare-and-swap}, making it lightweight and efficient, especially for managing small to moderate numbers of logical blocks in memory.
+We integrated all three versions described in Section \ref{sec:microbenchmark}. 
+Additionally, we included the original, specifically optimized range lock version by the author as a fourth competitor. 
+
+The range lock manages locking over a range of blocks in a buffer. It iterates through the specified block range in chunks, calculating which bits in the lock need to be updated for each chunk. It tries to set the corresponding bits case lock and clear bits case unlock in an atomic manner. If a bit was already set by another thread, the function detects this conflict, aborts the current operation, and undoes any changes made so far. 
+
+This range lock is lightweight and efficient, especially for managing small to moderate numbers of logical blocks in memory.
+However, it depends on specific memory size constraints. 
+Since our research focuses exclusively on the generalization use case of range lock, we have chosen not to consider this approach as a competitor in our project.
 
 \subsection{Workload}
 
@@ -215,13 +220,17 @@ The experiment also incorporates a buffer management configuration that allocate
     \begin{tikzpicture}
         \begin{axis}[
             width=\textwidth,
-            height=0.7\textwidth,
-            title={Comparison of txn by increasing amount of thread worker},
+            height=0.6\textwidth,
             title style={at={(0.5,1.1)}},
+            xmin=0,
+            ymin=0,
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=outside,
             xlabel={Amount of worker thread},
             ylabel={txn/s},
-            ytick={1e4, 2e4, 3e4, 4e4, 5e4, 6e4, 7e4},
-            yticklabels={$1 \cdot 10^{4}$, $2 \cdot 10^{4}$, $3 \cdot 10^{4}$, $4 \cdot 10^{4}$, $5 \cdot 10^{4}$, $6 \cdot 10^{4}$, $7 \cdot 10^{4}$},
+            ytick={0, 1e4, 2e4, 3e4, 4e4, 5e4, 6e4, 7e4},
+            yticklabels={$0$, $1 \cdot 10^{4}$, $2 \cdot 10^{4}$, $3 \cdot 10^{4}$, $4 \cdot 10^{4}$, $5 \cdot 10^{4}$, $6 \cdot 10^{4}$, $7 \cdot 10^{4}$},
             scaled y ticks=false,
             mark options={solid},
             legend style={at={(0.5,-0.25)}, anchor=north, legend columns=4},
@@ -245,12 +254,12 @@ The experiment also incorporates a buffer management configuration that allocate
             \addlegendentry{Song RL}
         \end{axis}
     \end{tikzpicture}
-    \caption{Comparison of transactions by increasing the number of thread workers.}
+    \caption{Leanstore YCSB: Transactional Throughput [Txn/s].}
     \label{fig:txn_comparison}
 \end{figure}
 
-We evaluated the throughput of four distinct variants as the number of worker threads increased, as depicted in Figure \ref{fig:txn_comparison}. 
-As anticipated, the \texttt{Bitmap} implementation consistently outperformed the other three variants. 
+We evaluated the throughput of four competitors as the number of worker threads increased, as depicted in Figure \ref{fig:txn_comparison}. 
+As anticipated, the \texttt{Bitmap} implementation consistently outperformed the other three competitors. 
 This superiority can be attributed mainly to its optimized use of the aliasing arena, making it the most efficient workload handling. 
 Our implementation (\texttt{Our}) demonstrated competitive performance, closely trailing \texttt{Bitmap} in terms of transactions per second. 
 Both \texttt{Bitmap} and \texttt{Our} showed effective scalability with an increasing number of worker threads, though \texttt{Bitmap} maintained a consistent, albeit slight, performance advantage.
@@ -258,10 +267,10 @@ Both \texttt{Bitmap} and \texttt{Our} showed effective scalability with an incre
 Conversely, \texttt{Song RL} initially exhibited substantial throughput but encountered a sharp decline beyond 24 worker threads. 
 This decline underscores the limitations of its coarse-grained range lock mechanism, as discussed in Subsection \ref{subsec:listbase}. 
 The single spinlock in \texttt{Song RL} becomes a significant bottleneck in high-contention scenarios, leading to marked performance degradation. 
-On the other hand, the \texttt{Scalable RL} variant showed steady, linear throughput growth. 
-However, its overall performance remained considerably lower than the other variants, highlighting its limitations.
+On the other hand, the \texttt{Scalable RL} showed steady, linear throughput growth. 
+However, its overall performance remained considerably lower than the other competitors, highlighting its limitations.
 
-An additional key observation is the difficulty faced by the \texttt{Bitmap}, \texttt{Our}, and \texttt{Song RL} variants in scaling effectively beyond 16 worker threads. 
+An additional key observation is the difficulty faced by the \texttt{Bitmap}, \texttt{Our}, and \texttt{Song RL} competitors in scaling effectively beyond 16 worker threads. 
 This limitation is due mainly to the BLOB size in our workload. With a BLOB size of 1MB and 16 worker threads, the combined size of the client-side buffer and the internal DBMS memory block for the BLOB exceeds the L3 cache capacity (32MB in our machine), resulting in significant contention at the L3 cache. 
 Furthermore, LeanStore's use of \texttt{memcpy} for read operations exacerbates this issue. \texttt{memcpy} consumes 2MB of memory read and write for every 1MB BLOB. 
 An average throughput of approximately 60,000 operations per second equals over 110 GB of memory consumed by \texttt{memcpy}, which saturates the memory bandwidth and hinders the application's ability to scale.
@@ -279,102 +288,117 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
     \subfloat[Cycles by thread workers]{%
         \begin{tikzpicture}
             \begin{axis}[
- width=0.8\textwidth,
- height=0.35\textwidth,
- ylabel={Cycles},
- legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
- ymajorgrids=true,
- grid style=dashed,
- legend cell align={left},
- ]
+            width=0.8\textwidth,
+            height=0.35\textwidth,
+            ylabel={Cycles},
+            xmin=0,
+            ymin=0,
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=outside,
+            legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+            ymajorgrids=true,
+            grid style=dashed,
+            legend cell align={left},
+            ]
     
             \addplot[color=blue,mark=none,line width=1pt] 
- table[x=worker_count, y=cycle, col sep=comma] {data/var_0.csv};
+                table[x=worker_count, y=cycle, col sep=comma] {data/var_0.csv};
             \addlegendentry{Bitmap}
     
             \addplot[color=red,mark=none,line width=1pt] 
- table[x=worker_count, y=cycle, col sep=comma] {data/var_1.csv};
+                table[x=worker_count, y=cycle, col sep=comma] {data/var_1.csv};
             \addlegendentry{Our}
     
             \addplot[color=black,mark=none,line width=1pt] 
- table[x=worker_count, y=cycle, col sep=comma] {data/var_2.csv};
+                table[x=worker_count, y=cycle, col sep=comma] {data/var_2.csv};
             \addlegendentry{Scalable RL}
     
             \addplot[color=orange,mark=none,line width=1pt] 
- table[x=worker_count, y=cycle, col sep=comma] {data/var_3.csv};
+                table[x=worker_count, y=cycle, col sep=comma] {data/var_3.csv};
             \addlegendentry{Song RL}
     
             \end{axis}
         \end{tikzpicture}
- }
+    }
 
     % Second graph: instr
     \subfloat[Instructions by thread workers]{%
         \begin{tikzpicture}
             \begin{axis}[
- width=0.8\textwidth,
- height=0.35\textwidth,
- ylabel={Instrs},
- legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
- ymajorgrids=true,
- grid style=dashed,
- legend cell align={left},
- ]
+            width=0.8\textwidth,
+            height=0.35\textwidth,
+            ylabel={Instrs},
+            xmin=0,
+            ymin=0,
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=outside,
+            legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+            ymajorgrids=true,
+            grid style=dashed,
+            legend cell align={left},
+            ]
     
             \addplot[color=blue,mark=none,line width=1pt] 
- table[x=worker_count, y=instr, col sep=comma] {data/var_0.csv};
+                table[x=worker_count, y=instr, col sep=comma] {data/var_0.csv};
             \addlegendentry{Bitmap}
     
             \addplot[color=red,mark=none,line width=1pt] 
- table[x=worker_count, y=instr, col sep=comma] {data/var_1.csv};
+                table[x=worker_count, y=instr, col sep=comma] {data/var_1.csv};
             \addlegendentry{Our}
     
             \addplot[color=black,mark=none,line width=1pt] 
- table[x=worker_count, y=instr, col sep=comma] {data/var_2.csv};
+                table[x=worker_count, y=instr, col sep=comma] {data/var_2.csv};
             \addlegendentry{Scalable RL}
     
             \addplot[color=orange,mark=none,line width=1pt] 
- table[x=worker_count, y=instr, col sep=comma] {data/var_3.csv};
+                table[x=worker_count, y=instr, col sep=comma] {data/var_3.csv};
             \addlegendentry{Song RL}
     
             \end{axis}
         \end{tikzpicture}%
- }
+    }
 
     % Third graph: L1-miss
     \subfloat[L1-misses by thread workers]{%
         \begin{tikzpicture}
             \begin{axis}[
- width=0.8\textwidth,
- height=0.35\textwidth,
- ylabel={L1-misses},
- legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
- ymajorgrids=true,
- grid style=dashed,
- legend cell align={left},
- ]
+            width=0.8\textwidth,
+            height=0.35\textwidth,
+            ylabel={L1-misses},
+            xmin=0,
+            ymin=0,
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=outside,
+            legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+            ymajorgrids=true,
+            grid style=dashed,
+            legend cell align={left},
+            ]
     
             \addplot[color=blue,mark=none,line width=1pt] 
- table[x=worker_count, y=L1-miss, col sep=comma] {data/var_0.csv};
+                table[x=worker_count, y=L1-miss, col sep=comma] {data/var_0.csv};
             \addlegendentry{Bitmap}
     
             \addplot[color=red,mark=none,line width=1pt] 
- table[x=worker_count, y=L1-miss, col sep=comma] {data/var_1.csv};
+                table[x=worker_count, y=L1-miss, col sep=comma] {data/var_1.csv};
             \addlegendentry{Our}
     
             \addplot[color=black,mark=none,line width=1pt] 
- table[x=worker_count, y=L1-miss, col sep=comma] {data/var_2.csv};
+                table[x=worker_count, y=L1-miss, col sep=comma] {data/var_2.csv};
             \addlegendentry{Scalable RL}
     
             \addplot[color=orange,mark=none,line width=1pt] 
- table[x=worker_count, y=L1-miss, col sep=comma] {data/var_3.csv};
+                table[x=worker_count, y=L1-miss, col sep=comma] {data/var_3.csv};
             \addlegendentry{Song RL}
     
             \end{axis}
-        \end{tikzpicture}%
- }
+        \end{tikzpicture}
+    }
 
-    \caption{Comparison of cycles, instructions, and L1-misses by increasing the number of thread workers.}
+    \caption{Cycles, instructions, and L1-misses}
     \label{fig:comparison_metrics}
 \end{figure}
 

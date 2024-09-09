@@ -48,5 +48,5 @@ The method utilizes hardware-supported atomic operations to ensure that writer l
 Unlocking is achieved by clearing the writer lock bit and decrementing the reader counter. 
 
 Although this method provides finer-grained locking with reduced overhead compared to interval tree-based locks, it is tailored to handle both reader and writer modes and depends on specific memory size constraints. 
-Since our research focuses exclusively on the exclusive mode and does not address the reader-writer combination, we have chosen not to consider this approach as a variant in our project.
+Since our research focuses exclusively on the exclusive mode and does not address the reader-writer combination, we have chosen not to consider this approach as a competitor in our project.
 
