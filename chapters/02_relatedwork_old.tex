@@ -27,7 +27,7 @@ It guarantees that each range is locked only after all previous conflicting rang
 
 \textbf{Single Point of Contention.}
 On this range lock, all operations relies on a single spinlock to protect the entire tree. 
-Under heavy concurrent access, this easily becomes a contention point, limiting the system's performance.
+Under heavy concurrent access, this easily becomes a contention point, limiting the performance of the system.
     
 \textbf{Limitation of FIFO Order.} 
 Consider three exclusive lock requests for the ranges \( A = [1..3], \; B = [2..7], \; \text{and} \; C = [4..5] \), arriving in that order. While A holds the lock, B is blocked because it overlaps with A, and C is blocked behind B. 

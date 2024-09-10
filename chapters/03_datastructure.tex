@@ -37,42 +37,47 @@ We strongly believe that the skip list is ideal for implementing range locking.
 \section{Modification of skiplist for concurrent range lock}
 
 We developed our concurrent range lock based on the \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}.
-In summary, \texttt{LockFreeSkipList} uses atomic operations (\texttt{compareAndSet()}) to manage \texttt{Node} references without locks, which enhances performance in multithreaded environments.
-When adding a \texttt{Node}, the process starts at the lowest level and moves upward to ensure immediate visibility.
-Removing a \texttt{Node} involves marking nodes from the top down before unlinking them.
+In summary, \texttt{LockFreeSkipList} uses atomic operations (\texttt{compareAndSet()}) to manage node references without locks, which enhances performance in multithreaded environments.
+When adding a node, the process starts at the lowest level and moves upward to ensure immediate visibility.
+Removing a node involves marking nodes from the top down before unlinking them.
 Furthermore, it relaxes strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency.
 
-However, conventional skiplists does not work out of the box for range locking. Firstly, each Node of the skiplist stores key and value, not range. Secondly, the comparison condition needs to be modified because we now must compare both range start and range end while inserting or deleting instead of just using the key. We present this in two critical changes in the Sections \ref{subsec:node} and \ref{subsec:find}, respectively.
+However, conventional skiplists does not work out of the box for range locking. Firstly, each node of the skiplist stores key and value, not range. Secondly, the comparison condition needs to be modified because we now must compare both range start and range end while inserting or deleting instead of just using the key. We present this in two critical changes in the Sections \ref{subsec:node} and \ref{subsec:find}, respectively.
 
 \subsection{Node}\label{subsec:node}
 
 \texttt{Node} is the base of our \texttt{ConcurrentRangeLock} structure.
-Each \texttt{Node} now contains \textbf{\texttt{start}} and \textbf{\texttt{end}}, which represents range.
+Each \texttt{Node} instance now contains \textbf{\texttt{start}} and \textbf{\texttt{end}}, which represent one range.
 \texttt{Node} uses an array of \textbf{\texttt{AtomicMarkableReference}} (more details in Section \ref{subsec:atomicmarkablereference}) to maintain forward links at each level, which allows for efficient traversal and updates. 
 \texttt{Node} provides the following methods:
 
 \begin{itemize}
-    \item \texttt{initialize}: sets up a \texttt{Node} with specific range and level values.
-    \item \textbf{\texttt{initializeHead}}: configures the head \texttt{Node} with forward pointers directed to a provided tail \texttt{Node}, establishing the initial structure.
-    \item \texttt{getTopLevel()}, \texttt{getStart()}, \texttt{getEnd()}: accessor methods to retrieve the Node's properties.
+    \item \texttt{initialize}: sets up a node with specific range and level values.
+    \item \textbf{\texttt{initializeHead}}: configures the head node with forward pointers directed to a provided tail node, establishing the initial structure.
+    \item \texttt{getTopLevel()}, \texttt{getStart()}, \texttt{getEnd()}: accessor methods to retrieve the properties of node.
 \end{itemize}
 
 \begin{figure}[h]
     \centering
-    \lstinputlisting[style=mystyle,caption={Pseudocode for Node structure},label={lst:node}]{code/node.txt}
+    \lstinputlisting[style=mystyle,caption={\texttt{ConcurrentRangeLock}: \texttt{Node} class},label={lst:node}]{code/node.txt}
 \end{figure}
 
 \clearpage
 
 \subsection{AtomicMarkableReference} \label{subsec:atomicmarkablereference}
 
-The \texttt{AtomicMarkableReference} class uses a single atomic variable, \texttt{atomicRefMark}, to store a packed representation of both the reference (specifically, a \texttt{Node}) and a mark. If the mark is \texttt{1}, it indicates that the \texttt{Node} it references is softly deleted. These values are packed and unpacked using bitwise operations, where the least significant bit represents the mark.
+\texttt{Node} use an array of \texttt{AtomicMarkableReference} to maintain the express layer. 
+An \texttt{AtomicMarkableReference} object encapsulates both a reference to an object of type T and a Boolean mark. 
+These fields can be atomically updated, either together or individually. 
+The  class uses a single atomic variable, \texttt{atomicRefMark}, to store a packed representation of both the reference and a mark. 
+If the mark is \texttt{1}, it indicates that the node references to it is softly deleted. 
+These values are packed and unpacked using bitwise operations, where the least significant bit represents the mark.
 
-Listing \ref{lst:atomicmarkablereference} provides the pseudo code for \texttt{AtomicMarkableReference}.
+Listing \ref{lst:atomicmarkablereference} provides the algorithm for \texttt{AtomicMarkableReference}.
 
-The \texttt{pack} method combines a \texttt{Node} pointer and a boolean mark into a single \texttt{uintptr\_t} value by encoding the pointer into the lower bits and the mark into the highest bit. Conversely, the \texttt{unpack} method decodes this packed value to retrieve the original \texttt{Node} pointer and boolean mark.
+The \texttt{pack} method combines a node pointer and a boolean mark into a single \texttt{uintptr\_t} value by encoding the pointer into the lower bits and the mark into the highest bit. Conversely, the \texttt{unpack} method decodes this packed value to retrieve the original node pointer and boolean mark.
 
-To atomically set a new \texttt{Node} pointer and mark value, the \texttt{store} method uses relaxed memory ordering.
+To atomically set a new node pointer and mark value, the \texttt{store} method uses relaxed memory ordering.
 
 The \texttt{compareAndSet} method performs an atomic update of both the reference and mark if they match the expected values, employing acquire-release memory ordering for proper synchronization.
 
@@ -82,5 +87,5 @@ The \texttt{get} method retrieves the current reference and mark, which stores t
 
 \begin{figure}[!p]
     \centering
-    \lstinputlisting[style=mystyle,caption={AtomicMarkableReference},label={lst:atomicmarkablereference}]{code/atomicmarkablereference.txt}
+    \lstinputlisting[style=mystyle,caption={\texttt{ConcurrentRangeLock}: \texttt{AtomicMarkableReference} class.},label={lst:atomicmarkablereference}]{code/atomicmarkablereference.txt}
 \end{figure}
