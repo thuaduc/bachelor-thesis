@@ -1,35 +1,35 @@
 \chapter{Introduction}\label{chapter:introduction}
 
 In modern computing environments, managing concurrent access to shared resources, such as database tables, file regions, or memory segments, is a significant challenge.
-Systems often rely on coarser synchronization methods, like using a single lock to manage the access between threads. 
+Systems often rely on coarse-grained locking to manage the access between processes. 
 This leads to significant inefficiencies and performance bottlenecks at high concurrency levels. 
 Range locking~\parencite{gao2023citron, kogan2020scalable, song2013parallelizing} offers a more refined solution to this challenge. 
-It partitions a shared resource into multiple arbitrarily sized segments, allowing different processes to exclusively acquire and access each segment simultaneously.
-This strategy effectively addresses the drawbacks and bottlenecks associated with single-lock methods, provides more granular control, and improves parallelism.
+It partitions a shared resource into multiple arbitrarily-sized segments, thereby allowing processes to exclusively acquire and access each segment simultaneously.
+This strategy effectively addresses the drawbacks and bottlenecks associated with coarse-grained methods, provides more granular control, and improves parallelism.
 
-\textbf{Range locking is essential across various systems.}  
-Despite being an under-researched topic, range locking plays a critical role in several key areas, including database management systems (DBMS), file systems, and operating systems.
-
-In DBMS, range locking ensures data consistency and prevent anomalies such as phantoms, especially at the serializable isolation level~\parencite{lomet2009locking}. 
+\textbf{Range locking is important in various systems.}
+In DBMS, range locking ensures data consistency and prevents anomalies such as phantoms, especially at a lower isolation level. 
 They secure not only individual records, but also the gaps between them, preventing other transactions from inserting or modifying records within the range until the transaction is complete. 
 This is particularly challenging in systems where transaction control (TC) and data control (DC) are separated. 
-TC must lock the range before safely interacting with DC, despite not knowing the specific keys involved.
+TC must lock the range before safely interacting with DC, despite not knowing the specific keys involved~\parencite{lomet2009locking}.
 
 Similarly, file systems, especially those designed for high-performance computing, are required to handle large-scale parallel I/O requests targeting different parts of a single data file~\parencite{congiu2016improving, kang2021optimizing}. 
-To achieve this, these systems must apply range lockign to efficiently and precisely coordinate concurrent access to shared storage, ensuring consistency and preventing conflicts.
+To achieve this, these systems must apply range locking to efficiently and precisely coordinate concurrent access to shared storage, ensuring consistency and preventing conflicts~\parencite{gao2023citron, kim2019pnova, kogan2020scalable}.
 
-Within operating systems, particularly in the Linux kernel community, increasing interest has been in applying range locking to alleviate contention issues related to \texttt{mmap\_sem}. 
+Within operating systems, particularly in the Linux kernel community, there has been an increasing interest in applying range locking to alleviate contention issues related to \texttt{mmap\_sem}. 
 \texttt{mmap\_sem} is a semaphore used to manage access to virtual memory areas (VMAs)~\parencite{readerWriterLocks2017, mapleTree2021, mmapLock2022}. 
 Because VMAs require synchronized access for operations such as memory mapping, unmapping, and handling page faults, range locking could come into play.
 
+\newpage
+
 \textbf{Existing range locking is not efficient.}
-Previous implementations of range locking are not efficient. 
-These implementations often suffer from contention points due to the reliance on a single lock~\parencite{linuxRangeLockImpl2013, song2013parallelizing}, as spinlock effectively serializes all incoming lock and unlock requests. 
+Despite its crucial role in various systems, range locking remains an under-researched topic. 
+Previous implementations of range locking often suffer from contention points due to the reliance on a single lock~\parencite{linuxRangeLockImpl2013, song2013parallelizing}, as a spinlock effectively serializes all incoming lock and unlock requests. 
 Additionally, some methods may be complex and tightly coupled with lock-based concurrency control protocols, which are not applicable for general DBMS operations~\parencite{graefe2007hierarchical, andy2022database}. 
-These limitations highlight the necessity for more refined and scalable solutions to better accommodate the demands of modern, large-scale systems. This drives us to develop an enhanced range lock.
+These limitations emphasize the need for more refined and scalable solutions to better accommodate the demands of modern, large-scale systems, motivating us to develop an enhanced range lock.
 
 \textbf{Contribution.} In the scope of this thesis, we introduce a new lock-free concurrent range lock. 
 Our method addresses the inefficiencies of previous range locks and ensures high performance in highly concurrent environments. 
-The result shows that at algorithm level, our method is at least three times faster than existing solutions. 
+The result shows that, at algorithm level, our method is at least three times faster than existing solutions. 
 This thesis provides an in-depth exploration of the development and evaluation of the proposed range-locking mechanism, offering a thorough understanding of its performance. 
 Furthermore, we compare the proposed solution with state-of-the-art methods, clearly assessing its effectiveness.

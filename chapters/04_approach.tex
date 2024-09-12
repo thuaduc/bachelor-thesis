@@ -34,7 +34,7 @@ For further detail, please refer to our \href{https://github.com/thuaduc/concurr
 
 \begin{figure}[H]
     \centering
-    
+    \small
     \begin{tikzpicture}[->, auto, semithick, node distance=2cm]
     
     % Node styles
@@ -55,9 +55,9 @@ For further detail, please refer to our \href{https://github.com/thuaduc/concurr
     
     % Arrows and Labels
     \path[->] 
-        (worker1) edge[draw=blue] node[left,yshift=-1cm] {tryLock(0,512) -- \ref{subsec:tryLock}} (crl)
+        (worker1) edge[draw=blue] node[left,yshift=-1cm] {\shortstack{tryLock(0,512) -- \\ Section \ref{subsec:tryLock}}} (crl)
         (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
-        (success1) edge[draw=darkblue,bend left=10] node[right] {releaseLock(0,512) -- \ref{subsec:releaseLock}} (crl)
+        (success1) edge[draw=darkblue,bend left=10] node[right] {\shortstack{releaseLock(0,512) -- \\ Section \ref{subsec:releaseLock}}} (crl)
         (crl) edge[draw=darkblue,bend right=20] node[right,yshift=-0.1cm] {success} (free1);
     \end{tikzpicture}
     \caption{\texttt{ConcurrentRangeLock}: life cycle one process lock and unlock one range.}
@@ -69,6 +69,7 @@ If there is no conflict, that is, if there is no overlap existing on the lock, \
 
 \begin{figure}[H]
     \centering
+    \small
     \begin{tikzpicture}[->, auto, semithick, node distance=2cm]
     
     % Node styles
@@ -102,7 +103,7 @@ If there is no conflict, that is, if there is no overlap existing on the lock, \
         (crl) edge[draw=red,bend left=10] node[below] {fail} (worker2)
         (crl) edge[draw=darkgreen] node[right] {success} (success3);
     \end{tikzpicture}
-    \caption{The behavior of range lock case: three threads trying to lock ranges. Second thread failed because of overlap}
+    \caption{The behavior of range lock case: three threads tried to lock ranges. Second thread failed because of overlap}
     \label{fig:crl_conflict}
 \end{figure}
 
@@ -177,6 +178,10 @@ Notice that this linearization point must occur during the \texttt{releaseLock} 
 
 Finally, if the \texttt{compareAndSet()} fails and the node is unmarked, the next node must have changed concurrently. 
 Since the victim is known, there is no need to call find() again, and \texttt{releaseLock} simply uses the new value read from next to retry the marking.
+
+\newpage
+
+\section{Utility}
 
 \subsection{Find}\label{subsec:find}
 

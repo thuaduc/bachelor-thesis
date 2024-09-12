@@ -1,13 +1,12 @@
 \chapter{\abstractname}
 
-In modern computing environments, managing concurrent access to shared resources, such as database tables, file regions, or memory segments, is a significant challenge. 
-Traditional synchronization methods often rely on a single lock, leading to inefficiencies and performance bottlenecks under high concurrency. 
-Range locking offers a more refined solution by partitioning shared resources into multiple segments, allowing different processes to access these segments concurrently. 
+In modern computing environments, the management of concurrent access to shared resources, such as database tables, file regions, or memory segments, represents a significant challenge. 
+Range locking provides a solution to this challenge by partitioning shared resources into arbitrarily-sized segments, thereby allowing different processes to access these segments concurrently.
 
-Although range locking plays a crucial role in various systems, including database management systems (DBMS), file systems, and operating systems, it remains an under-studied topic. 
-Existing implementations often suffer from contention and inefficiencies, particularly under high concurrency, highlighting the need for more scalable solutions.
+Despite its crucial role in various systems, range locking remains an under-researched topic. 
+Existing implementations often suffer from contention and inefficiencies, particularly in highly concurrent environments, underscoring the necessity for more scalable solutions.
 
-This thesis introduces a new lock-free concurrent range-locking mechanism to overcome these challenges.
-Our method improves upon previous designs by eliminating bottlenecks and ensuring high performance in heavily concurrent environments.
-Our evaluation shows that the proposed method outperforms existing approaches. 
-This thesis provides a comprehensive assessment of the development and evaluation of this new range lock, offering a comprehensive assessment of its effectiveness in modern computing systems.
+In this thesis, we propose a new lock-free concurrent range-locking mechanism to overcome these challenges. 
+Our method improves upon previous designs by eliminating bottlenecks and ensuring high performance in heavily concurrent environments. 
+Our evaluation demonstrates that the proposed method outperforms existing approaches. 
+This thesis provides an in-depth exploration of our method, offering a comprehensive assessment of its effectiveness in modern computing systems.

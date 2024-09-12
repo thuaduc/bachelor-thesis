@@ -56,33 +56,38 @@ We conducted experiments using the two workloads described in Subsection \ref{su
     \begin{tikzpicture}
         \begin{axis}[
             xlabel={Height},
-            ylabel={Runtime (seconds)},
-            ytick={4e-2, 5e-2, 6e-2, 7e-2, 8e-2},
-            yticklabels={$4 \cdot 10^{-2}$, $5 \cdot 10^{-2}$, $6 \cdot 10^{-2}$, $7 \cdot 10^{-2}$, $8 \cdot 10^{-2}$},
+            ylabel={Runtime (milliseconds)},
+            ytick={40, 50, 60, 70, 80},
+            yticklabels={$40$, $50$, $60$, $70$, $80$},
+            xtick style={thick, black},
+            ytick style={thick, black},
+            tick align=center,
             scaled y ticks=false,
             title={Runtime on different heights},
             grid=major,
+            grid style=dashed,
             width=0.8\textwidth,
             height=0.6\textwidth,
             enlargelimits=false,
-            ymax=0.08,
+            ymax=80,
             mark options={solid},
             enlarge x limits={abs=0.75cm},
             enlarge y limits=false,
             legend style={at={(0.5,-0.25)},anchor=north,legend columns=-1},
         ]
         \addplot[color=black,line width=0.7pt]
-        table[x=Height,y=Runtime,col sep=comma] {data/height2.csv};
+        table[x=Height,y expr=\thisrow{Runtime}*1000,col sep=comma] {data/height2.csv};
         \addplot[color=red,line width=0.7pt]
-        table[x=Height,y=Runtime,col sep=comma] {data/height1.csv};
+        table[x=Height,y expr=\thisrow{Runtime}*1000,col sep=comma] {data/height1.csv};
         \legend{W1, W2}
 
-        \draw[dashed, thick] (axis cs:10,0) -- (axis cs:10,0.1);
+        \draw[dashed, thick] (axis cs:10,0) -- (axis cs:10,100);
 
         \end{axis}
     \end{tikzpicture}
     \caption{Runtime for different heights of range lock}
 \end{figure}
+
 
 For \textbf{W1}, where contention is minimal, and each thread locks and releases ranges immediately, the height of the skip list has negligible impact on performance. 
 In this scenario, since the number of ranges locked at any given time is limited to the number of active worker threads, the benefits of a taller skip list are not realized. 
@@ -115,64 +120,66 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
     \begin{tikzpicture}
         \begin{axis}[
             width=0.8\textwidth,
-            height=0.45\textwidth,
+            height=0.4\textwidth,
+            grid=major,
+            grid style=dashed,
             xmin=0,
             ymin=0,
-            ymax=18000000,
+            ymax=18,
             xtick=data,
             xtick style={thick, black},
             ytick style={thick, black},
-            tick align=outside,
-            ytick={0, 0.5e7, 1e7, 1.5e7},
-            yticklabels={$0$, $0.5 \cdot 10^{7}$, $1 \cdot 10^{7}$, $1.5 \cdot 10^{7}$},
+            tick align=center,
+            ytick={0, 5, 10, 15},
+            yticklabels={$0$, $5M$, $10M$, $15M$},
             scaled y ticks=false,
             symbolic x coords={0,4,8,12,16,20,24,28,32},
-            grid=minor,
             ylabel={Number of locks and unlocks per second},
             xlabel={Number of worker threads},
             mark options={solid},
-            legend style={at={(0.5,-0.25)}, anchor=north,legend columns=-1},
+            legend style={at={(0.5,-0.3)}, anchor=north,legend columns=-1},
             ]
-            \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v0.csv};
-            \addplot[color=black,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v2.csv};
-            \addplot[color=orange,line width=0.7pt] table [x=NumThreads, y expr=1000000/\thisrow{Duration}, col sep=comma] {data/data_v3.csv};
+            \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=(1000000/\thisrow{Duration})/1e6, col sep=comma] {data/data_v0.csv};
+            \addplot[color=black,line width=0.7pt] table [x=NumThreads, y expr=(1000000/\thisrow{Duration})/1e6, col sep=comma] {data/data_v2.csv};
+            \addplot[color=orange,line width=0.7pt] table [x=NumThreads, y expr=(1000000/\thisrow{Duration})/1e6, col sep=comma] {data/data_v3.csv};
             \legend{Our, Scalable RL, Song RL}
         \end{axis}
     \end{tikzpicture}
-    \caption{\textbf{Workload 1}: Lock and unlock operations per second}
+    \caption{\textbf{Workload 1}: Lock and unlock operations per second. \texttt{Our} achieves 4x more operations than \texttt{Scalable RL} and 12x more than \texttt{Song RL}.}
     \label{fig:workload1}
 \end{figure}
 
 \begin{figure}[H]
+    \centering
     \begin{tikzpicture}
-        \centering
         \begin{axis}[
-            width=\textwidth,
-            height=0.45\textwidth,
+            width=0.8\textwidth,
+            height=0.4\textwidth,
+            grid=major,
+            grid style=dashed,
             xmin=0,
             ymin=0,
-            ymax=1300000,
+            ymax=1.3,
             xtick=data,
-            xticklabels={$0$,$4$,$8$,$12$,$16$,$20$,$24$,$28$,$32$},
             xtick style={thick, black},
             ytick style={thick, black},
-            tick align=outside,
-            grid=minor,
-            ytick={0, 0.2e6, 0.4e6, 0.6e6, 0.8e6, 1e6, 1.2e6},
-            yticklabels={$0$,$0.2 \cdot 10^{6}$, $0.4 \cdot 10^{6}$, $0.6 \cdot 10^{6}$, $0.8 \cdot 10^{6}$, $1.0 \cdot 10^{6}$, $1.2 \cdot 10^{6}$},
+            tick align=center,
+            ytick={0, 0.2, 0.4, 0.6, 0.8, 1, 1.2},
+            yticklabels={$0$, $0.2M$, $0.4M$, $0.6M$, $0.8M$, $1M$, $1.2M$},
             scaled y ticks=false,
+            symbolic x coords={0,4,8,12,16,20,24,28,32},
             ylabel={Number of locks and unlock per second},
             xlabel={Number of worker threads},
             mark options={solid},
-            legend style={at={(0.5,-0.25)}, anchor=north,legend columns=-1},
+            legend style={at={(0.5,-0.3)}, anchor=north,legend columns=-1},
             ]
-            \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v0.csv};
-            \addplot[color=black,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v2.csv};
-            \addplot[color=orange,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}, col sep=comma] {data/w2_v3.csv};
+            \addplot[color=red,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}/1e6, col sep=comma] {data/w2_v0.csv};
+            \addplot[color=black,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}/1e6, col sep=comma] {data/w2_v2.csv};
+            \addplot[color=orange,line width=0.7pt] table [x=NumThreads, y expr=200000/\thisrow{Duration}/1e6, col sep=comma] {data/w2_v3.csv};
             \legend{Our, Scalable RL, Song RL}
         \end{axis}
     \end{tikzpicture}
-    \caption{\textbf{Workload 2}: Lock and unlock operations per second}
+    \caption{\textbf{Workload 2}: Lock and unlock operations per second. \texttt{Our} achieves 2-9x more than \texttt{Scalable RL} and 2-6x more than \texttt{Song RL}.}
     \label{fig:workload2}
 \end{figure}
 
@@ -200,12 +207,13 @@ This prevents race conditions and ensures data consistency while simultaneously 
 
 We integrated all three versions described in Section \ref{sec:microbenchmark}. 
 Additionally, we included the original, specifically optimized range lock version by the author as a fourth competitor. 
+We denoted it as \texttt{Bitmap}
 
-The range lock manages locking over a range of blocks in a buffer. It iterates through the specified block range in chunks, calculating which bits in the lock need to be updated for each chunk. It tries to set the corresponding bits case lock and clear bits case unlock in an atomic manner. If a bit was already set by another thread, the function detects this conflict, aborts the current operation, and undoes any changes made so far. 
+\texttt{Bitmap} manages locking over a range of blocks in a buffer. It iterates through the specified block range in chunks, calculating which bits in the lock need to be updated for each chunk. It tries to set the corresponding bits case lock and clear bits case unlock in an atomic manner. If a bit was already set by another thread, the function detects this conflict, aborts the current operation, and undoes any changes made so far. 
 
-This range lock is lightweight and efficient, especially for managing small to moderate numbers of logical blocks in memory.
-However, it depends on specific memory size constraints. 
-Since our research focuses exclusively on the generalization use case of range lock, we have chosen not to consider this approach as a competitor in our project.
+\texttt{Bitmap} is lightweight and efficient implementation of range locking.
+However, it does not support locking and unlocking a specific range from page x to page y, but rather an entire block of 1GB. 
+Since our research focuses exclusively on the generalized use case of range locking, we have chosen not to consider this approach as a competitor in our project.
 
 \subsection{Workload}
 
@@ -219,19 +227,21 @@ The experiment also incorporates a buffer management configuration that allocate
     \centering
     \begin{tikzpicture}
         \begin{axis}[
-            width=\textwidth,
+            width=0.8\textwidth,
             height=0.6\textwidth,
             title style={at={(0.5,1.1)}},
             xmin=0,
             ymin=0,
             xtick style={thick, black},
             ytick style={thick, black},
-            tick align=outside,
+            tick align=center,
             xlabel={Amount of worker thread},
             ylabel={txn/s},
             ytick={0, 1e4, 2e4, 3e4, 4e4, 5e4, 6e4, 7e4},
             yticklabels={$0$, $1 \cdot 10^{4}$, $2 \cdot 10^{4}$, $3 \cdot 10^{4}$, $4 \cdot 10^{4}$, $5 \cdot 10^{4}$, $6 \cdot 10^{4}$, $7 \cdot 10^{4}$},
             scaled y ticks=false,
+            grid=major,
+            grid style=dashed,
             mark options={solid},
             legend style={at={(0.5,-0.25)}, anchor=north, legend columns=4},
             ymajorgrids=true,
@@ -280,8 +290,7 @@ As illustrated in Figure \ref{fig:comparison_metrics}, both the \texttt{Bitmap} 
 In contrast, \texttt{Song RL} exhibited a significant rise in the number of instructions with additional threads, indicating inefficiencies under higher loads. 
 Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasing number of L1 misses and instructions as the workload intensified.
 
-
-\begin{figure}[h]
+\begin{figure}[h!]
     \centering
 
     % First graph: cycle/s
@@ -295,9 +304,11 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
             ymin=0,
             xtick style={thick, black},
             ytick style={thick, black},
-            tick align=outside,
+            tick align=center,
             legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+            scaled y ticks=false,
             ymajorgrids=true,
+            grid=major,
             grid style=dashed,
             legend cell align={left},
             ]
@@ -333,8 +344,9 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
             ymin=0,
             xtick style={thick, black},
             ytick style={thick, black},
-            tick align=outside,
+            tick align=center,
             legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+            scaled y ticks=false,
             ymajorgrids=true,
             grid style=dashed,
             legend cell align={left},
@@ -371,8 +383,9 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
             ymin=0,
             xtick style={thick, black},
             ytick style={thick, black},
-            tick align=outside,
+            tick align=center,
             legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+            scaled y ticks=false,
             ymajorgrids=true,
             grid style=dashed,
             legend cell align={left},
