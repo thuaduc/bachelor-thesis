@@ -45,7 +45,7 @@ We therefore propose a new data structure on the basis of the original skip list
 We developed our structure based on the \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}. 
 The two critical modifications of node storage and comparsion conditions are presented in the Sections \ref{subsec:node} and \ref{subsec:find}, respectively.
 
-In summary, \texttt{LockFreeSkipList} uses atomic operations (\texttt{compareAndSet()}) to manage node references without locks, thereby enhancing performance in multithreaded environments.
+In summary, \texttt{LockFreeSkipList} uses atomic operations (\texttt{compareAndSwap()}) to manage node references without locks, thereby enhancing performance in multithreaded environments.
 When a node is added, the process begins at the lowest level and progresses upward, ensuring immediate visibility. 
 Node removal involves marking nodes from the top down before unlinking them. 
 Additionally, it relaxes the strict structural maintenance of higher levels, focusing on the bottom-level list for set representation, which offers improved scalability and efficiency.
@@ -72,11 +72,13 @@ Each \texttt{Node} instance now contains \textbf{\texttt{start}} and \textbf{\te
 
 \subsection{AtomicMarkableReference} \label{subsec:atomicmarkablereference}
 
-In order to achieve a lock-free data structure, it is necessary to rely on the \texttt{compareAndSet()} primitive. 
-This allows for the soft deletion of a node, which can then be physically deleted at a later stage by any process without blocking each other. 
-Therefore, it is essential that each \texttt{Node} uses an array of \texttt{AtomicMarkableReference}.
+We want to keep the high levels of range locking non-blocking. 
+We employed a common technique in concurrent linked list implementations of marking the node~\parencite{harris2001pragmatic}. 
+In brief, the least significant bit (LSB) of the next pointer is set to mark the current node as deleted. 
+This enables the soft deletion of a node, which can then be physically deleted at a later stage by any other process without blocking the others. 
+Therefore, we track successors of a \texttt{Node} by an array of \texttt{AtomicMarkableReference}.
 
-In short words, an \texttt{AtomicMarkableReference} object encapsulates both a reference to an object of type T and a boolean mark, which can be atomically updated, either together or individually. 
+An \texttt{AtomicMarkableReference} object encapsulates both a reference to an object of type T and a boolean mark, which can be atomically updated, either together or individually. 
 It uses a single atomic variable, \texttt{atomicRefMark}, to store a packed representation of both the reference and a mark. 
 If the mark is \texttt{1}, it indicates that the predecessor of this node has been softly deleted. 
 These values are packed and unpacked using bitwise operations, where the least significant bit represents the mark.
@@ -87,7 +89,7 @@ The \texttt{pack} method combines a node pointer and a boolean mark into a singl
 
 To atomically set a new node pointer and mark value, the \texttt{store} method uses relaxed memory ordering.
 
-The \texttt{compareAndSet} method performs an atomic update of both the reference and mark if they match the expected values, employing acquire-release memory ordering for proper synchronization.
+The \texttt{compareAndSwap} method performs an atomic update of both the reference and mark if they match the expected values, employing acquire-release memory ordering for proper synchronization.
 
 The \texttt{attemptMark} method focuses on updating only the mark, provided that the current reference matches the expected one and the mark is different. If the update succeeds, it returns \texttt{true}; otherwise, it returns \texttt{false}.
 

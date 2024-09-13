@@ -13,7 +13,7 @@ bool ConcurrentRangeLock::find(uint64_t start, uint64_t end,
         while (start > curr->getStart()) {
             succ = curr->next[level]->get(marked);
             while (marked[0]) {
-                snip = pred->next[level]->compareAndSet(curr, succ, false, false);
+                snip = pred->next[level]->compareAndSwap(curr, succ, false, false);
 
                 if (!snip) goto retry;
 

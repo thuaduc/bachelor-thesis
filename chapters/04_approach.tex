@@ -55,9 +55,9 @@ For further detail, please refer to our \href{https://github.com/thuaduc/concurr
     
     % Arrows and Labels
     \path[->] 
-        (worker1) edge[draw=blue] node[left,yshift=-1cm] {\shortstack{tryLock(0,512) -- \\ Section \ref{subsec:tryLock}}} (crl)
+        (worker1) edge[draw=blue] node[left,yshift=-1cm] {\shortstack{tryLock(0,512) \\ Section \ref{subsec:tryLock}}} (crl)
         (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
-        (success1) edge[draw=darkblue,bend left=10] node[right] {\shortstack{releaseLock(0,512) -- \\ Section \ref{subsec:releaseLock}}} (crl)
+        (success1) edge[draw=darkblue,bend left=10] node[right] {\shortstack{releaseLock(0,512) \\ Section \ref{subsec:releaseLock}}} (crl)
         (crl) edge[draw=darkblue,bend right=20] node[right,yshift=-0.1cm] {success} (free1);
     \end{tikzpicture}
     \caption{\texttt{ConcurrentRangeLock}: life cycle one process lock and unlock one range.}
@@ -103,7 +103,7 @@ If there is no conflict, that is, if there is no overlap existing on the lock, \
         (crl) edge[draw=red,bend left=10] node[below] {fail} (worker2)
         (crl) edge[draw=darkgreen] node[right] {success} (success3);
     \end{tikzpicture}
-    \caption{The behavior of range lock case: three threads tried to lock ranges. Second thread failed because of overlap}
+    \caption{The behavior of range lock case: three threads tried to lock ranges. Second thread failed because of range overlap.}
     \label{fig:crl_conflict}
 \end{figure}
 
@@ -111,7 +111,7 @@ If there is no conflict, that is, if there is no overlap existing on the lock, \
 
 The \texttt{tryLock} method, shown in Listing \ref{lst:tryLock}, utilizes \texttt{findInsert()} to check if a node with the range \texttt{[start, end]} already exists. If found, \texttt{tryLock} returns \texttt{false}. 
 Otherwise, it creates a new node and attempts to insert it into the list. 
-The node is inserted starting from the bottom level, with \texttt{compareAndSet()} ensuring the integrity of the insertion. 
+The node is inserted starting from the bottom level, with \texttt{compareAndSwap()} ensuring the integrity of the insertion. 
 If any insertion fails due to concurrent changes, \texttt{findInsert()} is called again to update the predecessors and successors, and the process repeats until successful.
 
 \vspace{15pt}
@@ -131,9 +131,9 @@ If no unmarked node is found, the next step is to add a new node with the target
 A new node is created with a randomly chosen top-level (lines 10--11). 
 The next references of the new node are unmarked and set to the successors returned by the \texttt{findInsert()} method (lines 13--15).
 The next step is to try to add the new node by linking it into the bottom-level list between the \texttt{preds[0]} and \texttt{succs[0]} nodes returned by \texttt{findInsert()}. 
-We use the \texttt{compareAndSet()} method to set the reference while validating that these nodes still refer one to the other and have not been removed from the list (line 17). 
-If the  \texttt{compareAndSet()} fails, something has changed and the call restarts. 
-If the  \texttt{compareAndSet()} succeeds, the item is added, and line 17 is the call's linearization point.
+We use the \texttt{compareAndSwap()} method to set the reference while validating that these nodes still refer one to the other and have not been removed from the list (line 17). 
+If the  \texttt{compareAndSwap()} fails, something has changed and the call restarts. 
+If the  \texttt{compareAndSwap()} succeeds, the item is added, and line 17 is the call's linearization point.
 The {findInsert()} then links the node in at higher levels (lines 21--25). 
 For each level, it attempts to splice the node by setting the predecessor, if it refers to the valid successor, to the new node (lines 22--23). If successful, it breaks and moves on to the next level. 
 If unsuccessful, then the node referenced by the predecessor must have changed, and \texttt{findInsert()} is called again to find a new valid set of predecessors and successors (line 24). 
@@ -144,7 +144,7 @@ The method returns true once all levels are linked (line 27).
 
 The \texttt{releaseLock} method first calls \texttt{findExact()} to locate an unmarked node with the specified range \texttt{[start, end]}. 
 If found, it marks all node levels except the bottom one, preparing the node for removal. 
-The method then attempts to mark the bottom-level link using \texttt{compareAndSet()}, which serves as the linearization point for a successful \texttt{releaseLock}. 
+The method then attempts to mark the bottom-level link using \texttt{compareAndSwap()}, which serves as the linearization point for a successful \texttt{releaseLock}. 
 If marking fails due to concurrent modifications, the method retries or returns false, depending on the state of the node.
 
 \vspace{15pt}
@@ -167,16 +167,16 @@ Otherwise, the current level's link is reread since another concurrent thread mu
 
 Once all levels but the bottom one have been marked, the method marks the bottom level's next reference. 
 If successful, this marking (line 27) is the linearization point of a successful \texttt{releaseLock}. 
-The \texttt{releaseLock} method tries to mark the next field using \texttt{compareAndSet()}. 
+The \texttt{releaseLock} method tries to mark the next field using \texttt{compareAndSwap()}. 
 If successful, it can determine that it was the thread that changed the mark from false to true. 
 Before returning true, the \texttt{findDelete()} method is called. 
 This call is an optimization: \texttt{findDelete()} physically removes all links to the node it is searching for.
 
-On the other hand, if the  \texttt{compareAndSet()} call fails, but the next reference is marked, then another thread must have concurrently removed it, so \texttt{releaseLock} returns false. 
+On the other hand, if the  \texttt{compareAndSwap()} call fails, but the next reference is marked, then another thread must have concurrently removed it, so \texttt{releaseLock} returns false. 
 The linearization point of this unsuccessful \texttt{releaseLock} is the linearization point of the \texttt{releaseLock} method by the thread that successfully marked the next field. 
 Notice that this linearization point must occur during the \texttt{releaseLock} call because the \texttt{findExact()} call found the node unmarked before it found it marked.
 
-Finally, if the \texttt{compareAndSet()} fails and the node is unmarked, the next node must have changed concurrently. 
+Finally, if the \texttt{compareAndSwap()} fails and the node is unmarked, the next node must have changed concurrently. 
 Since the victim is known, there is no need to call find() again, and \texttt{releaseLock} simply uses the new value read from next to retry the marking.
 
 \newpage
@@ -203,7 +203,7 @@ Nevertheless, these methods have to maintain the following two properties:
 
 \begin{itemize}
     \item During traversal, they need to skip over marked nodes.
-    They use \texttt{compareAndSet()} to ensure that they remove all softly deleted node on the way.
+    They use \texttt{compareAndSwap()} to ensure that they remove all softly deleted node on the way.
     \item Every \texttt{preds[]} reference is to a node with a key strictly less than the target.
 \end{itemize}
 
@@ -218,8 +218,8 @@ The \texttt{find()} method starts by traversing the LockFreeSkipList from the \t
 It proceeds down the list level by level, filling in the \texttt{preds} and \texttt{succs} nodes.
 These nodes are repeatedly advanced until \texttt{pred} refers to a node with the \texttt{end} value on that level that is strictly less than the target range \texttt{end} (lines 13--29).
 
-While traversing, it repeatedly snips out marked nodes from the current level as they are encountered (lines 15--22) using a \texttt{compareAndSet()}.
-\texttt{compareAndSet()} function also validates that the next field of the predecessor still references the current node.
+While traversing, it repeatedly snips out marked nodes from the current level as they are encountered (lines 15--22) using a \texttt{compareAndSwap()}.
+\texttt{compareAndSwap()} function also validates that the next field of the predecessor still references the current node.
 
 Once an unmarked \texttt{curr} node is found (line 23), it is tested to see if its \texttt{start} is greater than or equal to the target \texttt{start}.
 If so, \texttt{pred} is advanced to \texttt{curr}, \texttt{curr} is advanced to \texttt{succ}, and the traverse continues.

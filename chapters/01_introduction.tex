@@ -7,18 +7,17 @@ Range locking~\parencite{gao2023citron, kogan2020scalable, song2013parallelizing
 It partitions a shared resource into multiple arbitrarily-sized segments, thereby allowing processes to exclusively acquire and access each segment simultaneously.
 This strategy effectively addresses the drawbacks and bottlenecks associated with coarse-grained methods, provides more granular control, and improves parallelism.
 
-\textbf{Range locking is important in various systems.}
-In DBMS, range locking ensures data consistency and prevents anomalies such as phantoms, especially at a lower isolation level. 
+\textbf{Range locking in DBMS.} In DBMS, range locking ensures data consistency and prevents anomalies such as phantoms, especially at a lower isolation level. 
 They secure not only individual records, but also the gaps between them, preventing other transactions from inserting or modifying records within the range until the transaction is complete. 
-This is particularly challenging in systems where transaction control (TC) and data control (DC) are separated. 
-TC must lock the range before safely interacting with DC, despite not knowing the specific keys involved~\parencite{lomet2009locking}.
+This is particularly challenging in systems where transaction control (TC) and data control (DC) are separated~\parencite{lomet2009locking}. 
+TC must lock the range before safely interacting with DC, despite not knowing the specific keys involved.
 
-Similarly, file systems, especially those designed for high-performance computing, are required to handle large-scale parallel I/O requests targeting different parts of a single data file~\parencite{congiu2016improving, kang2021optimizing}. 
+\textbf{Range locking in file system.} In file systems, especially those designed for high-performance computing, are required to handle large-scale parallel I/O requests targeting different parts of a single data file~\parencite{congiu2016improving, kang2021optimizing}. 
 To achieve this, these systems must apply range locking to efficiently and precisely coordinate concurrent access to shared storage, ensuring consistency and preventing conflicts~\parencite{gao2023citron, kim2019pnova, kogan2020scalable}.
 
-Within operating systems, particularly in the Linux kernel community, there has been an increasing interest in applying range locking to alleviate contention issues related to \texttt{mmap\_sem}. 
+\textbf{Range locking in operating system.} Within operating systems, particularly in the Linux kernel community, there has been an increasing interest in applying range locking to alleviate contention issues related to \texttt{mmap\_sem}. 
 \texttt{mmap\_sem} is a semaphore used to manage access to virtual memory areas (VMAs)~\parencite{readerWriterLocks2017, mapleTree2021, mmapLock2022}. 
-Because VMAs require synchronized access for operations such as memory mapping, unmapping, and handling page faults, range locking could come into play.
+Because VMAs require synchronized access for operations such as memory mapping, unmapping, and handling page faults, range locking comes into play.
 
 \newpage
 

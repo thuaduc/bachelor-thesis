@@ -14,12 +14,12 @@
                     newNode->next[level]->store(succs[level], false);
                 }
     
-                if (!preds[0]->next[0]->compareAndSet(succs[0], newNode, false, false)) {
+                if (!preds[0]->next[0]->compareAndSwap(succs[0], newNode, false, false)) {
                     continue;
                 }
     
                 for (int level = 1; level <= topLevel; ++level) {
-                    while (!preds[level]->next[level]->compareAndSet(
+                    while (!preds[level]->next[level]->compareAndSwap(
                         succs[level], newNode, false, false)) {
                         findInsert(start, end, preds, succs);
                     }

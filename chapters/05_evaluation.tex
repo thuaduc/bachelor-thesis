@@ -13,9 +13,8 @@ The second competitor is a skip list range lock proposed by Song et al.~\parenci
 
 \section{Benchmark enviroment}
 
-For benchmark purposes, we utilized a server with an AMD Ryzen 9 7950X processor, which features 16 cores and 32 threads, providing substantial computational power for the experiments. 
+For benchmark purposes, we utilized a server with an AMD Ryzen 9 7950X processor, which features 16 cores and 32 threads, providing computational power for the experiments. 
 The server configuration included a virtual memory cache with a capacity of 128 GB, backed by 32 GB of physical memory. 
-The cache management aimed to minimize eviction sizes to enhance performance and reliability during the benchmarks.
 
 \section{Microbenchmark}\label{sec:microbenchmark}
 
@@ -37,7 +36,7 @@ To explore various levels of contention and potential usage scenarios for range 
     Here, threads perform batched memory operations, where a series of memory ranges (typically 16) are locked, modified (simulated by \texttt{memset()}) and then unlocked in a single batch. 
     The goal is to test all competitors under heavier threaded conditions. 
     By locking and unlocking in batches, the number of ranges within the data structure increases, providing insight into how efficiently each competitor can search, lock, and unlock ranges as the load increases. 
-    This workload emphasizes the performance of the locking mechanism in handling more substantial, real-world use cases where contention may be higher.
+    This workload emphasizes the performance of the locking mechanism in handling real-world use cases where contention may be higher.
 \end{itemize}
 
 Through these workloads, we aim to comprehensively evaluate the performance of the concurrent range lock mechanism under different workloads and contention scenarios. 
@@ -134,7 +133,7 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
             yticklabels={$0$, $5M$, $10M$, $15M$},
             scaled y ticks=false,
             symbolic x coords={0,4,8,12,16,20,24,28,32},
-            ylabel={Number of locks and unlocks per second},
+            ylabel={Number of locks and unlocks per second (M)},
             xlabel={Number of worker threads},
             mark options={solid},
             legend style={at={(0.5,-0.3)}, anchor=north,legend columns=-1},
@@ -168,7 +167,7 @@ However, \texttt{Scalable RL} demonstrates better scalability with increasing th
             yticklabels={$0$, $0.2M$, $0.4M$, $0.6M$, $0.8M$, $1M$, $1.2M$},
             scaled y ticks=false,
             symbolic x coords={0,4,8,12,16,20,24,28,32},
-            ylabel={Number of locks and unlock per second},
+            ylabel={Number of locks and unlock per second (M)},
             xlabel={Number of worker threads},
             mark options={solid},
             legend style={at={(0.5,-0.3)}, anchor=north,legend columns=-1},
@@ -223,6 +222,8 @@ The experiment also incorporates a buffer management configuration that allocate
 
 \subsection{Result}
 
+\subsubsection*{Throughput}
+
 \begin{figure}[h!]
     \centering
     \begin{tikzpicture}
@@ -268,7 +269,8 @@ The experiment also incorporates a buffer management configuration that allocate
     \label{fig:txn_comparison}
 \end{figure}
 
-We evaluated the throughput of four competitors as the number of worker threads increased, as depicted in Figure \ref{fig:txn_comparison}. 
+We evaluated the throughput of four competitors as the number of worker threads increased. 
+The result is depicted in Figure \ref{fig:txn_comparison}. 
 As anticipated, the \texttt{Bitmap} implementation consistently outperformed the other three competitors. 
 This superiority can be attributed mainly to its optimized use of the aliasing arena, making it the most efficient workload handling. 
 Our implementation (\texttt{Our}) demonstrated competitive performance, closely trailing \texttt{Bitmap} in terms of transactions per second. 
@@ -285,32 +287,50 @@ This limitation is due mainly to the BLOB size in our workload. With a BLOB size
 Furthermore, LeanStore's use of \texttt{memcpy} for read operations exacerbates this issue. \texttt{memcpy} consumes 2MB of memory read and write for every 1MB BLOB. 
 An average throughput of approximately 60,000 operations per second equals over 110 GB of memory consumed by \texttt{memcpy}, which saturates the memory bandwidth and hinders the application's ability to scale.
 
-We also analyzed other performance metrics, such as cycles, instructions, and L1 cache misses. 
-As illustrated in Figure \ref{fig:comparison_metrics}, both the \texttt{Bitmap} and \texttt{Our} implementations maintained stable levels of cycles, instructions, and L1 cache misses as the number of threads increased. 
-In contrast, \texttt{Song RL} exhibited a significant rise in the number of instructions with additional threads, indicating inefficiencies under higher loads. 
-Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasing number of L1 misses and instructions as the workload intensified.
+\subsubsection*{Metric}
+
+
+We also analyzed other performance of four methods in terms of CPU cycles, instructions, and L1 cache misses, as the number of workers increases. The result is depicted in Figure \ref{fig:txn_comparison}. 
+
+In the first graph, which measures cycles, the \texttt{Scalable RL} has the highest amount of cycles as the worker count rises. 
+This is predictable as we have observed that \texttt{Scalable RL} performs poorly in the benchmark above. 
+In contrast, \texttt{Bitmap}, \texttt{Song RL}, and \texttt{Our} methods maintain much lower and more stable cycle counts, with the \texttt{Our} method closely matching the \texttt{Bitmap} method in performance. 
+
+The second graph shows the number of instructions executed. 
+The data indicates that, while the initial instruction count for \texttt{Scalable RL} is relatively high, it subsequently declines and stabilizes. 
+The number of instructions of \texttt{Song RL} method exhibited a significant increase after reaching 25 threads, indicating the presence of a point of contention.
+Otherwise, \texttt{Our} method exhibits a slightly higher instruction count compared to \texttt{Bitmap}, but the difference remains small. 
+
+The third graph tracks L1 cache misses. 
+It shows that \texttt{Scalable RL} suffers from the highest number of L1 misses, but again it subsequently declines and stabilizes. 
+In contrast, \texttt{Bitmap}, \texttt{Song RL}, and \texttt{Our} methods keep their L1-miss counts low and stable across all workers. 
+
+Overall, the \texttt{Our} method achieves efficient resource usage, closely matching \texttt{Bitmap} in cycles and L1 misses, while showing a small increase in instructions. This suggests that the \texttt{Our} method is a scalable and efficient solution that outperforms \texttt{Scalable RL} and performs nearly as well as \texttt{Bitmap} across all metrics.
 
 \begin{figure}[h!]
     \centering
 
     % First graph: cycle/s
-    \subfloat[Cycles by thread workers]{%
+    \subfloat[Cycles on worker basis]{%
         \begin{tikzpicture}
             \begin{axis}[
-            width=0.8\textwidth,
-            height=0.35\textwidth,
-            ylabel={Cycles},
-            xmin=0,
-            ymin=0,
-            xtick style={thick, black},
-            ytick style={thick, black},
-            tick align=center,
-            legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
-            scaled y ticks=false,
-            ymajorgrids=true,
-            grid=major,
-            grid style=dashed,
-            legend cell align={left},
+                width=0.8\textwidth,
+                height=0.35\textwidth,
+                ylabel={Cycles (M)},
+                xmin=0,
+                ymin=0,
+                ymax=9000000,
+                xtick style={thick, black},
+                ytick style={thick, black},
+                ytick={0, 2000000, 4000000, 6000000, 8000000},
+                yticklabels={$0$, $2M$, $4M$, $6M$, $8M$},
+                tick align=center,
+                legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
+                scaled y ticks=false,
+                ymajorgrids=true,
+                grid=major,
+                grid style=dashed,
+                legend cell align={left},
             ]
     
             \addplot[color=blue,mark=none,line width=1pt] 
@@ -334,20 +354,24 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
     }
 
     % Second graph: instr
-    \subfloat[Instructions by thread workers]{%
+    \subfloat[Instructions on worker basis]{%
         \begin{tikzpicture}
             \begin{axis}[
             width=0.8\textwidth,
             height=0.35\textwidth,
-            ylabel={Instrs},
+            ylabel={Instrs (M)},
             xmin=0,
             ymin=0,
+            ymax=500000,
             xtick style={thick, black},
             ytick style={thick, black},
+            ytick={0, 200000, 400000},
+            yticklabels={$0$, $0.2M$, $0.4M$},
             tick align=center,
             legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
             scaled y ticks=false,
             ymajorgrids=true,
+            grid=major,
             grid style=dashed,
             legend cell align={left},
             ]
@@ -373,7 +397,7 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
     }
 
     % Third graph: L1-miss
-    \subfloat[L1-misses by thread workers]{%
+    \subfloat[L1-misses on worker basis]{%
         \begin{tikzpicture}
             \begin{axis}[
             width=0.8\textwidth,
@@ -381,12 +405,14 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
             ylabel={L1-misses},
             xmin=0,
             ymin=0,
+            ymax=90000,
             xtick style={thick, black},
             ytick style={thick, black},
             tick align=center,
             legend style={at={(1,1)}, anchor=north east, legend columns=2, font=\tiny},
             scaled y ticks=false,
             ymajorgrids=true,
+            grid=major,
             grid style=dashed,
             legend cell align={left},
             ]
@@ -411,7 +437,8 @@ Meanwhile, \texttt{Scalable RL} demonstrated better scalability, with a decreasi
         \end{tikzpicture}
     }
 
-    \caption{Cycles, instructions, and L1-misses}
+    \caption{Cycles, instructions, and L1-misses on worker basis}
     \label{fig:comparison_metrics}
 \end{figure}
+
 

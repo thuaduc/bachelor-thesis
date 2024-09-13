@@ -22,7 +22,7 @@ bool ConcurrentRangeLock::releaseLock(uint64_t start, uint64_t end) {
             bool marked[1] = {false};
             succ = nodeToRemove->next[0]->get(marked);
             while (true) {
-                bool iMarkedIt = nodeToRemove->next[0]->compareAndSet(
+                bool iMarkedIt = nodeToRemove->next[0]->compareAndSwap(
                         succ, succ, false, true);
                 succ = succs[0]->next[0]->get(marked);
                 if (iMarkedIt) {
