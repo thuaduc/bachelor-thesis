@@ -26,27 +26,27 @@ The two primary methods rely heavily on private searching methods such as \textt
 
 \section{Algorithm in details}
 
-For the sake of simplicity, we use \texttt{uint64\_t} as the data strucutre for ranges for our detail algorithm provided in this section. 
-We use the template feature in our open-source C++ implementation to enable generic programming. 
-For further detail, please refer to our \href{https://github.com/thuaduc/concurrent-range-locking}{open-source code}.
+For the sake of simplicity, we use \texttt{uint64\_t} as the data structure for ranges for our detail algorithm provided in this section. 
+We use the template feature in our implementation to enable generic choice of data structure for ranges. 
+Further details may be found in our \href{https://github.com/thuaduc/concurrent-range-locking}{open-source code}.
 
 \subsection{Life cycle}
 
 \begin{figure}[H]
     \centering
     \small
-    \begin{tikzpicture}[->, auto, semithick, node distance=2cm]
+    \begin{tikzpicture}[->, auto, semithick, node distance=1cm]
     
     % Node styles
     \tikzstyle{thread1}=[state, draw=darkblue, line width=0.5mm, align=center]
-    \tikzstyle{crl}=[draw=black, fill=none, minimum width=2cm, align=center]
+    \tikzstyle{crl}=[draw=black, fill=none, align=center]
     \tikzstyle{success1}=[state, draw=darkblue,line width=0.5mm, align=center]
     
     % Nodes
-    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [0,512]};
-    \node[crl,  right=2cm of worker1, yshift=-2cm] (crl) {Concurrent Range Lock};
-    \node[success1, above=2cm of crl] (success1) {worker\_thread 1 \\ acquired [0,512]};
-    \node[success1, right=9cm of worker1] (free1) {worker\_thread 1 \\ released [0,512]};
+    \node[thread1] (worker1) {worker\_thread 1 \\ acquiring [start, end]};
+    \node[crl, right=1.5cm of worker1, yshift=-1.5cm] (crl) {Concurrent Range Lock};
+    \node[success1, above=1.5cm of crl] (success1) {worker\_thread 1 \\ acquired \\ {[start, end]}};
+    \node[success1, right=7.5cm of worker1] (free1) {worker\_thread 1 \\ released [start, end]};
 
     % Numbers
     \node[above=0.2cm of worker1] {(1)};
@@ -55,9 +55,9 @@ For further detail, please refer to our \href{https://github.com/thuaduc/concurr
     
     % Arrows and Labels
     \path[->] 
-        (worker1) edge[draw=blue] node[left,yshift=-1cm] {\shortstack{tryLock(0,512) \\ Section \ref{subsec:tryLock}}} (crl)
+        (worker1) edge[draw=blue] node[left,yshift=-1.3cm] {\shortstack{tryLock(start, end) \\ Section \ref{subsec:tryLock}}} (crl)
         (crl) edge[draw=blue,bend left=10] node[left] {success} (success1)
-        (success1) edge[draw=darkblue,bend left=10] node[right] {\shortstack{releaseLock(0,512) \\ Section \ref{subsec:releaseLock}}} (crl)
+        (success1) edge[draw=darkblue,bend left=10] node[right] {\shortstack{releaseLock(start, end) \\ Section \ref{subsec:releaseLock}}} (crl)
         (crl) edge[draw=darkblue,bend right=20] node[right,yshift=-0.1cm] {success} (free1);
     \end{tikzpicture}
     \caption{\texttt{ConcurrentRangeLock}: life cycle one process lock and unlock one range.}
@@ -65,7 +65,10 @@ For further detail, please refer to our \href{https://github.com/thuaduc/concurr
 \end{figure}
 
 Each process has to call the \texttt{tryLock} method with the parameters range start, range end, thus the positions on the shared object that this thread wants to acquire. 
-If there is no conflict, that is, if there is no overlap existing on the lock, \texttt{tryLock} is successful. Thread now has exclusive access to this segment of the shared object and can freely read and write this segment. After finish using this segment, thread can call \texttt{releaseLock} to return his access to this segment. If used correctly, \texttt{releaseLock} should always return true.
+If there is no conflict, that is, if there is no overlap existing on the lock, \texttt{tryLock} is successful. 
+Thread now has exclusive access to this segment of the shared object and can freely read and write this segment. 
+After finish using this segment, thread can call \texttt{releaseLock} to return his access to this segment. 
+If used correctly, \texttt{releaseLock} always return true.
 
 \begin{figure}[H]
     \centering

@@ -11,7 +11,7 @@ The first competitor is a scalable range lock proposed by Kogan et al.~\parencit
 We specifically implemented the Exclusive Access variant presented in their paper, as it aligns with the focus of our research. 
 The second competitor is a skip list range lock proposed by Song et al.~\parencite{song2013parallelizing}, which we denote as \texttt{Song RL}.
 
-\section{Benchmark enviroment}
+\section{Benchmark environment}
 
 For benchmark purposes, we utilized a server with an AMD Ryzen 9 7950X processor, which features 16 cores and 32 threads, providing computational power for the experiments. 
 The server configuration included a virtual memory cache with a capacity of 128 GB, backed by 32 GB of physical memory. 
@@ -19,10 +19,10 @@ The server configuration included a virtual memory cache with a capacity of 128 
 \section{Microbenchmark}\label{sec:microbenchmark}
 
 \subsection{Workload}\label{subsec:workload}
-The primary objective of a concurrent range lock mechanism is to enable multiple threads to access disjoint parts of the same shared object efficiently. 
+The primary objective of a concurrent range lock is to enable multiple threads to access disjoint parts of the same shared object efficiently. 
 To simulate and evaluate the effectiveness of different range locking strategies, we utilize the \texttt{mmap()} system call to create a shared object in memory and the \texttt{memset()} function to simulate write operations to this shared object. 
 For each range, we will write 1KB. 
-The use of \texttt{memset()} serves as a placeholder for actual modifications, enabling us to focus on the performance characteristics of the locking mechanism itself.
+The use of \texttt{memset()} serves as a placeholder for actual modifications, enabling us to focus on the performance characteristics of the range locking itself.
 
 To explore various levels of contention and potential usage scenarios for range locks, we have devised two distinct workloads, each designed to stress the locking mechanism under different conditions:
 
@@ -39,15 +39,15 @@ To explore various levels of contention and potential usage scenarios for range 
     This workload emphasizes the performance of the locking mechanism in handling real-world use cases where contention may be higher.
 \end{itemize}
 
-Through these workloads, we aim to comprehensively evaluate the performance of the concurrent range lock mechanism under different workloads and contention scenarios. 
+Through these workloads, we aim to comprehensively evaluate the performance of the concurrent range lock under different workloads and contention scenarios. 
 Each workload provides insights into the lock's scalability, efficiency, and overall robustness in handling varying degrees of parallelism and contention.
 
 \subsection{Optimal Height for Range Locking}
 
-The skip list height in our range-locking mechanism plays a critical role in balancing performance and resource utilization. 
+The skip list height in \texttt{Our} plays a critical role in balancing performance and resource utilization. 
 A skip list with insufficient height may need to optimize lookup times effectively, leading to slower performance. 
 In contrast, an excessive height increases memory consumption and management overhead without proportionate gains in efficiency. 
-This test aims to determine the optimal height for our concurrent range-locking mechanism before comparing it to alternative approaches. 
+This test aims to determine the optimal height for \texttt{Our} before comparing it to alternative approaches. 
 We conducted experiments using the two workloads described in Subsection \ref{subsec:workload} to identify the best skip list height.
 
 \begin{figure}[h]
@@ -99,11 +99,16 @@ This is due to the probabilistic level assignment in skip lists, where the chanc
 The sparsely populated upper levels contribute little to performance improvement but increase memory usage.
 
 Based on these observations, we identify a sweet spot at a height of \texttt{10}, where the trade-off between performance and resource utilization is optimized. 
-This height balances the need for efficient lookups with manageable memory overhead, making it the ideal choice for our range-locking mechanism in subsequent benchmarks.
+This height balances the need for efficient lookups with manageable memory overhead, making it the ideal choice for \texttt{Our} in subsequent benchmarks.
 
 \subsection{Result}
 
-Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} has good scalability and outperforms the other two. We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. However, in more realistic scenarios, such as those discussed in Section \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
+Figure \ref{fig:workload1} shows the number of successful locks and unlocks per second with increasing working threads under \textbf{W1}. We can see that \texttt{Our} has good scalability and outperforms the other two. 
+We archive four times more operations than \texttt{Scalable RL} and twelve times more than \texttt{Song RL}. 
+The poor performance of \texttt{Song RL} is due to the immediate locking and releasing mechanism, combined with the low memory overhead of \texttt{memset} (1KB per range). 
+The spinlock in \texttt{Song RL} becomes a significant point of contention, leading to its poor performance. 
+Additionally, since the locks are released immediately, \texttt{Song RL} cannot effectively leverage its skip list data structure, as the maximum number of ranges in the list is limited to the number of worker threads. 
+However, in more realistic scenarios, such as those discussed in Section \ref{sec:leanstore} or \textbf{W2}, we will see \texttt{Song RL} perform much better.
 
 Figure \ref{fig:workload2} illustrates the same result for \textbf{W2}, \texttt{Our} continued to outperform the others, achieving two to nine times more operations than \texttt{Scalable RL} and two to six times more than \texttt{Song RL}. 
 In this workload, the number of ranges locked simultaneously increases to the number of threads multiplied by the batch size (16). 
@@ -194,19 +199,19 @@ This ensures that the range locks are not only theoretically efficient but also 
 
 \texttt{Leanstore}~\parencite{leis2018leanstore} is a high-performance storage engine designed to support various database management systems. 
 To further enhance its capabilities, Nguyen et al.~\parencite{nguyen2024files} introduced a comprehensive design for allocating and logging large objects, which has been integrated into Leanstore. 
-Their performance study demonstrates that this approach not only outperforms many popular file systems but also ensures transactional consistency and durability for large objects. Given the crucial role that range locks play in their design, we integrated our concurrent range lock mechanism to enable realistic and rigorous benchmarking.
+Their performance study demonstrates that this approach not only outperforms many popular file systems but also ensures transactional consistency and durability for large objects. Given the crucial role that range locks play in their design, we integrated our work and competitors to enable a realistic benchmarking.
 
-In the proposed design, range locks synchronize access to shared aliasing areas, which are contiguous ranges of virtual memory addresses used to present disjointed extents as contiguous memory. 
+In the proposed design, range lock synchronize access to shared aliasing areas, which are contiguous ranges of virtual memory addresses used to present disjointed extents as contiguous memory. 
 When a worker needs to allocate virtual memory for large BLOBs, particularly when these BLOBs exceed the size of the worker-local aliasing area, it must reserve free virtual memory from the shared aliasing area. 
-A range lock mechanism prevents concurrent workers from accessing overlapping memory regions. 
-The range lock operates by locking specific ranges within the shared aliasing area, ensuring that only one worker can modify or access a particular memory range. 
+Range lock prevents concurrent workers from accessing overlapping memory regions. 
+It operates by locking specific ranges within the shared aliasing area, ensuring that only one worker can modify or access a particular memory range. 
 This prevents race conditions and ensures data consistency while simultaneously allowing multiple workers to operate on different memory ranges. 
 
 \subsection{Competitors}
 
 We integrated all three versions described in Section \ref{sec:microbenchmark}. 
 Additionally, we included the original, specifically optimized range lock version by the author as a fourth competitor. 
-We denoted it as \texttt{Bitmap}
+We denoted it as \texttt{Bitmap}.
 
 \texttt{Bitmap} manages locking over a range of blocks in a buffer. It iterates through the specified block range in chunks, calculating which bits in the lock need to be updated for each chunk. It tries to set the corresponding bits case lock and clear bits case unlock in an atomic manner. If a bit was already set by another thread, the function detects this conflict, aborts the current operation, and undoes any changes made so far. 
 
@@ -277,7 +282,7 @@ Our implementation (\texttt{Our}) demonstrated competitive performance, closely 
 Both \texttt{Bitmap} and \texttt{Our} showed effective scalability with an increasing number of worker threads, though \texttt{Bitmap} maintained a consistent, albeit slight, performance advantage.
 
 Conversely, \texttt{Song RL} initially exhibited substantial throughput but encountered a sharp decline beyond 24 worker threads. 
-This decline underscores the limitations of its coarse-grained range lock mechanism, as discussed in Subsection \ref{subsec:listbase}. 
+This decline underscores the limitations of coarse-grained locking, as discussed in Subsection \ref{subsec:listbase}. 
 The single spinlock in \texttt{Song RL} becomes a significant bottleneck in high-contention scenarios, leading to marked performance degradation. 
 On the other hand, the \texttt{Scalable RL} showed steady, linear throughput growth. 
 However, its overall performance remained considerably lower than the other competitors, highlighting its limitations.
@@ -289,7 +294,6 @@ An average throughput of approximately 60,000 operations per second equals over 
 
 \subsubsection*{Metric}
 
-
 We also analyzed other performance of four methods in terms of CPU cycles, instructions, and L1 cache misses, as the number of workers increases. The result is depicted in Figure \ref{fig:txn_comparison}. 
 
 In the first graph, which measures cycles, the \texttt{Scalable RL} has the highest amount of cycles as the worker count rises. 
@@ -299,7 +303,7 @@ In contrast, \texttt{Bitmap}, \texttt{Song RL}, and \texttt{Our} methods maintai
 The second graph shows the number of instructions executed. 
 The data indicates that, while the initial instruction count for \texttt{Scalable RL} is relatively high, it subsequently declines and stabilizes. 
 The number of instructions of \texttt{Song RL} method exhibited a significant increase after reaching 25 threads, indicating the presence of a point of contention.
-Otherwise, \texttt{Our} method exhibits a slightly higher instruction count compared to \texttt{Bitmap}, but the difference remains small. 
+Apart from that, \texttt{Our} method exhibits a slightly higher instruction count compared to \texttt{Bitmap}, but the difference remains small. 
 
 The third graph tracks L1 cache misses. 
 It shows that \texttt{Scalable RL} suffers from the highest number of L1 misses, but again it subsequently declines and stabilizes. 
@@ -359,7 +363,7 @@ Overall, the \texttt{Our} method achieves efficient resource usage, closely matc
             \begin{axis}[
             width=0.8\textwidth,
             height=0.35\textwidth,
-            ylabel={Instrs (M)},
+            ylabel={Instructions (M)},
             xmin=0,
             ymin=0,
             ymax=500000,

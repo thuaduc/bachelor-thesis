@@ -43,7 +43,7 @@ These two aspects -- node storage and comparison conditions -- require modificat
 
 We therefore propose a new data structure on the basis of the original skip list.
 We developed our structure based on the \texttt{LockFreeSkipList} proposed by Herlihy et al.~\parencite{herlihy2020art}. 
-The two critical modifications of node storage and comparsion conditions are presented in the Sections \ref{subsec:node} and \ref{subsec:find}, respectively.
+The two critical modifications of node storage and comparison conditions are presented in the Sections \ref{subsec:node} and \ref{subsec:find}, respectively.
 
 In summary, \texttt{LockFreeSkipList} uses atomic operations (\texttt{compareAndSwap()}) to manage node references without locks, thereby enhancing performance in multithreaded environments.
 When a node is added, the process begins at the lowest level and progresses upward, ensuring immediate visibility. 
